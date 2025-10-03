@@ -21,13 +21,15 @@ def read_tj_file(session_path, tj_file_name='tj.dat'):
 
     return data
 
-def get_integral_bounds(data, f_min=1e-2, f_max=1e6, f_steps=20):
+def get_integral_bounds(data, time_label='t', f_min=1e-2, f_max=1e6, f_steps=20):
     """ Determine integral bounds in the time domain, used to compute the conductance and capacitance
 
     Parameters
     ----------
     data : dataFrame
         Pandas dataFrame containing the time, voltage, current density and numerical error in the current density of the tj_file
+    time_label : string
+        Specifies the heading used to denote the time column in data ('t' for tj.dat files, and 'time' for varFile.dat files)
     f_min : float
         Minimum frequency
     f_max : float
@@ -42,12 +44,12 @@ def get_integral_bounds(data, f_min=1e-2, f_max=1e6, f_steps=20):
     """
 
     # Total number of time points
-    numTimePoints = len(data['t'])
+    numTimePoints = len(data[time_label])
 
     # Check which time index corresponds to 1/fmax. We call this istart:
     istart = -1
     for i in range(numTimePoints):
-        if math.isclose(data['t'][i], 1/f_max, rel_tol = 2/f_steps): #note: don't use == to compare 2 floating points!
+        if math.isclose(data[time_label][i], 1/f_max, rel_tol = 2/f_steps): #note: don't use == to compare 2 floating points!
             istart = i
 
     # Starting time point could not be found.

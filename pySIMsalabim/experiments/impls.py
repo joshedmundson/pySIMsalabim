@@ -73,87 +73,6 @@ def create_tVG_IMPLS(V, G_frac, del_G, tVG_name, session_path, f_min, f_max, ini
     retval = 0
     return retval, msg
 
-# def read_tj_file(session_path, tj_file_name='tj.dat'):
-#     """ Read relevant parameters for admittance of the tj file
-
-#     Parameters
-#     ----------
-#     session_path : string
-#         Path of the simulation folder for this session
-#     data_tj : dataFrame
-#         Pandas dataFrame containing the tj output file from ZimT
-
-#     Returns
-#     -------
-#     DataFrame
-#         Pandas dataFrame of the tj_file containing the time, current density, numerical error in the current density and the photogenerated current density
-#     """
-
-#     data = pd.read_csv(os.path.join(session_path,tj_file_name), sep=r'\s+')
-
-#     return data
-
-# def get_integral_bounds(data, f_min=1e-2, f_max=1e6, f_steps=20):
-#     """ Determine integral bounds in the time domain, used to compute the conductance and capacitance
-
-#     Parameters
-#     ----------
-#     data : dataFrame
-#         Pandas dataFrame containing the time, current density, numerical error in the current density and the photogenerated current density of the tj_file
-#     f_min : float
-#         Minimum frequency
-#     f_max : float
-#         Maximum frequency
-#     f_steps : float
-#         Frequency steps
-
-#     Returns
-#     -------
-#     list
-#         List of array indices that will be used in the plotting
-#     """
-
-#     # Total number of time points
-#     numTimePoints = len(data['t'])
-
-#     # Check which time index corresponds to 1/fmax. We call this istart:
-#     istart = -1
-#     for i in range(numTimePoints):
-#         if math.isclose(data['t'][i], 1/f_max, rel_tol = 2/f_steps): #note: don't use == to compare 2 floating points!
-#             istart = i
-
-#     # Starting time point could not be found
-#     if istart == -1:
-#         msg = 'Could not find a time that corresponds to the highest frequency.'
-#         return -1, msg
-    
-#     # print('Found istart: ', istart)
-
-#     # ifin: last index we should plot, corresponds to time = 1/f_min:
-#     ifin = numTimePoints - 1
-
-#     # isToPlot starts with istart:
-#     isToPlot = [istart]
-
-#     PlotRatio = max(1, round( (ifin-istart)/(math.log10(f_max/f_min) * f_steps)))
-
-#     # Incorrect plot ratio
-#     if PlotRatio < 1:
-#         msg = 'PlotRatio smaller than 1. It should at least be 1'
-#         return -1, msg
-
-#     # Then add the other indices:
-#     for i in range(istart+1, ifin-1):
-#         if (i-istart) % PlotRatio == 0: # note: % is python's modulo operator.
-#             isToPlot.append(i) # add the index to our array
-
-#     # Also include the last index:
-#     isToPlot.append(ifin)
-
-#     # Integral bounds have been determined, return the array with indices and a success message
-#     msg = 'Success'
-#     return isToPlot, msg
-
 def calc_IMPLS_limit_time(phi, time, imax):
     """Fourier Decomposition formula which computes the admittance at frequency freq (Hz) and its complex error
     Based on S.E. Laux, IEEE Trans. Electron Dev. 32 (10), 2028 (1985), eq. 5a, 5b
@@ -166,8 +85,6 @@ def calc_IMPLS_limit_time(phi, time, imax):
     ----------
     phi : np.array
         Array of photoluminescence
-    errPhi : np.array
-        Numerical error in calculated photoluminescence (output of ZimT) CHECK
     time : np.array
         Array with all time positions, from 0 to tmax
     imax : integer
@@ -179,8 +96,6 @@ def calc_IMPLS_limit_time(phi, time, imax):
         Frequency belonging to P(f)
     complex number
         IMPLS trasfer at frequency f: P(f)
-    complex number
-        Numerical error in calculated admittance P(f)
     """
 
     freq=1/time[imax] #we obtain the frequency from the time array
@@ -189,8 +104,6 @@ def calc_IMPLS_limit_time(phi, time, imax):
     #prepare array for integrants:
     int1 = np.empty(imax)
     int2 = np.empty(imax)
-    int3 = np.empty(imax)
-    int4 = np.empty(imax)
 	
     #now we use only part of the time array:
     timeLim = time[0:imax]
@@ -200,26 +113,15 @@ def calc_IMPLS_limit_time(phi, time, imax):
         cosfac = math.cos(2*math.pi*freq*timeLim[i])
         int1[i] = sinfac*(phi[i] - phiInf)
         int2[i] = cosfac*(phi[i] - phiInf)	
-        # int3[i] = sinfac*(phi[i] + errPhi[i] - phiInf - errPhi[imax])
-        # int4[i] = cosfac*(phi[i] + errPhi[i] - phiInf - errPhi[imax])	
 
     #now compute the real and imaginary components of P:
     PReal = (phiInf - phi[0] + 2*math.pi*freq*scipy.integrate.trapezoid(int1, timeLim))
     PIm = scipy.integrate.trapezoid(int2, timeLim)
     #convert to IMPLS transfer function P:
     P = PReal + 2J*math.pi*freq*PIm
-	
-    #and again, but now with the error added to the current:	
-    # PRealErr = (phiInf + errPhi[imax] - phi[0] - errPhi[0] + 2*math.pi*freq*scipy.integrate.trapezoid(int3, timeLim))
-    # CHECK PImErr = scipy.integrate.trapezoid(int4, timeLim)
-    #convert to IMPLS transfer function P:
-    # CHECK P2 = PRealErr + 2J*math.pi*freq*PImErr
-    
-    #error is the difference between Y and Y2:
-    errY = P # CHECK - P2
-    
-    #now return complex admittance, its error and the corresponding frequency:	
-    return freq, P, # CHECK errY
+
+    #now return complex IMPLS transfer function P and the corresponding frequency:	
+    return freq, P 
 
 def calc_IMPLS(data, isToPlot):
     """ Calculate the admittance over the frequency range
@@ -227,7 +129,7 @@ def calc_IMPLS(data, isToPlot):
     Parameters
     ----------
     data : dataFrame
-        Pandas dataFrame containing the time, and direct recombination rate Rdir which we use as output photo luminescence  
+        Pandas dataFrame containing the time and direct recombination rate Rdir which we use as a proxy for luminescence  
     isToPlot : list
         List of array indices that will be used in the plotting
 
@@ -236,11 +138,9 @@ def calc_IMPLS(data, isToPlot):
     np.array
         Array of frequencies
     np.array
-        Array of the real component of the IMPLS transfer function
+        Array of the real component of the IMPLS transfer function P
     np.array
-        Array of the imaginary component of the IMPLS transfer function
-    np.array
-        Array of complex error
+        Array of the imaginary component of the IMPLS transfer function P
     """
     # init the arrays for the IMPLS transfer function and its error:
     numFreqPoints = len(isToPlot)
@@ -248,17 +148,15 @@ def calc_IMPLS(data, isToPlot):
     ReP = np.empty(numFreqPoints)
     ImP = np.empty(numFreqPoints)
     P = [1 + 1J] * numFreqPoints
-    # CHECK errP = [1 + 1J] * numFreqPoints
 
     for i in range(numFreqPoints):
         imax=isToPlot[i]
-        # CHECK freq[i], P[i], errP[i] = calc_IMPLS_limit_time(data['Rdir'], data['Rerr'], data['t'], imax)
         freq[i], P[i] = calc_IMPLS_limit_time(data['Rdir'], data['time'], imax)
         # we are only interested in the absolute value of the real and imag components:
         ReP[i] =(P[i].real)
         ImP[i] = (P[i].imag)
     
-    return freq, ReP, ImP# CHECK, errP
+    return freq, ReP, ImP
 
 def store_IMPLS_data(session_path, freq, ReP, ImP, output_file):
     """ Save the frequency, real & imaginary part of the IMPLS transfer function & its error in one file called freqP.dat
@@ -273,14 +171,13 @@ def store_IMPLS_data(session_path, freq, ReP, ImP, output_file):
         Array of the real component of the IMPLS transfer function
     ImP : np.array
         Array of the imaginary component of the IMPLS transfer function
-    errP : np.array
-        Array of complex error in admittance
+    output_file : string
+        Name of the ouptut file ('freqP.dat')
     """
 
     with open(os.path.join(session_path,output_file), 'w') as file:
         file.write('freq ReP ImP' + '\n')
         for i in range(len(freq)):
-            # CHECK file.write(f'{freq[i]:.6e} {ReP[i]:.6e} {ImP[i]:.6e} {abs(errP[i].real):.6e} {abs(errP[i].imag):.6e}' + '\n')
             file.write(f'{freq[i]:.6e} {ReP[i]:.6e} {ImP[i]:.6e}' + '\n')
 
     # print('The data of the IMPS graphs is written to ' + output_file)
@@ -291,7 +188,7 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
     Parameters
     ----------
     data : DataFrame
-        DataFrame with the simulation results (tj.dat) file
+        DataFrame with the simulation results
     f_min : float
         Minimum frequency
     f_max : float
@@ -312,11 +209,9 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
 
     if isToPlot != -1:
         # Integral bounds have been determined, continue to calculate the IMPS
-        # CHECK freq, ReP, ImP, errP = calc_IMPLS(data, isToPlot)
         freq, ReP, ImP = calc_IMPLS(data, isToPlot)
 
         # Write IMPS results to a file
-        # CHECK store_IMPLS_data(session_path, freq, ReP, ImP, errP, output_file)
         store_IMPLS_data(session_path, freq, ReP, ImP, output_file)
 
         msg = 'Success'
@@ -326,12 +221,14 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
         return -1, msg
 
 def IMPLS_plot(session_path, output_file, xscale='log', yscale='log', plot_type = plt.plot):
-    """ Plot the real and imaginary part of the IMPLS transfer function against frequency
+    """ Plot the real and imaginary part of the IMPLS transfer function P against frequency
 
     Parameters
     ----------
     session_path : string
         working directory for zimt
+    output_file : string 
+        Name of the output file containing the experiment data (freqP.dat)
     xscale : string
         Scale of the x-axis. E.g linear or log
     yscale_ax1 : string
@@ -339,7 +236,7 @@ def IMPLS_plot(session_path, output_file, xscale='log', yscale='log', plot_type 
     yscale_ax2 : string
         Scale of the right y-axis. E.g linear or log
     """
-    # Read the data from freqY-file
+    # Read the data from freqP-file
     data_freqP = pd.read_csv(os.path.join(session_path,output_file), sep=r'\s+')
 
     # Flip the ImY data to the first quadrant
@@ -358,14 +255,14 @@ def IMPLS_plot(session_path, output_file, xscale='log', yscale='log', plot_type 
     plt.show()
 
 def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
-    """ Plot the Cole-Cole plot with the real and imaginary part of the IMPLS transfer function against frequency
+    """ Plot the Cole-Cole plot with the real and imaginary part of the IMPLS transfer function P against frequency
 
     Parameters
     ----------
     session_path : string
         working directory for zimt
     output_file : string
-        Filename where the admittance data is stored
+        Filename where the IMPLS transfer function P data is stored
     xscale : string
         Scale of the x-axis. E.g linear or log
     yscale : string
@@ -373,7 +270,7 @@ def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
     plot_type : matplotlib.pyplot
         Type of plot to display
     """
-    # Read the data from freqY-file
+    # Read the data from freqP-file
     data = pd.read_csv(os.path.join(session_path,output_file), sep=r'\s+')
     
     fig, ax = plt.subplots()
@@ -386,20 +283,13 @@ def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
     weight_norm_nyq = 'log'
     title_nyq = 'Cole-Cole plot'
 
-    # Plot the Cole-Cole plot with or without errorbars
-    # if plot_type == plt.errorbar:
-    #     ax = utils_plot.plot_result(data, pars_nyq, list(pars_nyq.keys()), par_x_nyq, xlabel_nyq, ylabel_nyq, xscale, yscale, title_nyq, ax, plot_type, 
-    #                                         [], data['ImErr'], legend=False)
-    # else:
     ax = utils_plot.plot_result(data, pars_nyq, list(pars_nyq.keys()), par_x_nyq, xlabel_nyq, ylabel_nyq, xscale, yscale, title_nyq, ax,plt.plot,
                                             legend=False)
 
     plt.show()
 
-
-
 def plot_IMPLS(session_path, output_file='freqP.dat'):
-    """Plot transfer function P of IMPLS
+    """Plot the IMPLS transfer function P
 
     Parameters
     ----------
@@ -438,9 +328,9 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
     tVG_name : string, optional
         Name of the tVG file, by default tVG.txt
     output_file : string, optional
-        Name of the file where the admittance data is stored, by default freqY.dat
+        Name of the file where the IMPLS transfer function P data is stored, by default freqP.dat
     tj_name : string, optional
-        Name of the tj file where the admittance data is stored, by default tj.dat
+        Name of the tj file where the output device measurements (V, J, G_frac, etc) are stored, by default tj.dat
     varFile : string, optional
         Name of the var file, by default 'varFile.dat'
     ini_timeFactor : float, optional
@@ -523,8 +413,9 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
         if result == 0 or result == 95:
             # data = read_tj_file(session_path, tj_file_name=tj_name)
             data = pd.read_csv(varFile, sep=r'\s+')
-            # Drop unnecessary columns 
-            data = data[['time', 'Rdir']]
+            
+            # Integrate direct recombination over x, position within the material
+            data = integrate_fxt_dx(data, 'Rdir', x_name='x', t_name='time')
 
             result, message = get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file)
             return result, message
@@ -630,7 +521,6 @@ if __name__ == "__main__":
     # Run IMPS spectroscopy
     GStep = G_frac*fac_G
 
-    # result, message = run_IMPLS_simu(zimt_device_parameters, f_min, f_max, f_steps, V, G_frac, GStep, tVG_name=tVG_name,  session_path= session_path, run_mode=False, ini_timeFactor=ini_timeFactor, timeFactor=timeFactor)
     result, message = run_IMPLS_simu(zimt_device_parameters,session_path, f_min, f_max, f_steps, V_0, G_frac, GStep, run_mode=False, tVG_name=tVG_name, 
                                         output_file = output_name, tj_name = tj_name, ini_timeFactor=ini_timeFactor, timeFactor=timeFactor, cmd_pars=cmd_pars, UUID=UUID)
 

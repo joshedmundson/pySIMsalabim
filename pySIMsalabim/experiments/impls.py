@@ -220,7 +220,7 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
         # Failed to determine integral bounds, exit with the error message
         return -1, msg
 
-def IMPLS_plot(session_path, output_file, xscale='log', yscale='log', plot_type = plt.plot):
+def IMPLS_plot(session_path, output_file, xscale='log', yscale1='log', yscale2='log', plot_type = plt.plot):
     """ Plot the real and imaginary part of the IMPLS transfer function P against frequency
 
     Parameters
@@ -237,24 +237,30 @@ def IMPLS_plot(session_path, output_file, xscale='log', yscale='log', plot_type 
         Scale of the right y-axis. E.g linear or log
     """
     # Read the data from freqP-file
-    data_freqP = pd.read_csv(os.path.join(session_path,output_file), sep=r'\s+')
+    data = pd.read_csv(os.path.join(session_path,output_file), sep=r'\s+')
 
-    # Flip the ImY data to the first quadrant
-    # data["ImY"] = data["ImY"]*-1*-1
+    # Flip the ImP data as Gillespie follow the convention of -Im
+    data["ImP"] = data["ImP"]*-1
 
     # Define the plot parameters, two y axis
-    pars_imps = {'ImP' : '-Im P [arb. units]' }
-    selected = ['ImP']
+    pars_impls = {'ReP': 'Re P [arb. units]', 'ImP' : '-Im P [arb. units]'}
+    selected_1 = ['ReP']
+    selected_2 = ['ImP']
     par_x = 'freq'
     xlabel = 'frequency [Hz]'
-    ylabel = 'Im P'
-    title = 'Computed IMPLS'
-    fig, ax = plt.subplots()
-    utils_plot.plot_result(data_freqP, pars_imps, selected, par_x, xlabel, ylabel, xscale, yscale, title, ax, plot_type)
+    ylabel1 = 'Re P [arb. units]'
+    ylabel2 = '-Im P [arb. units]'
+    title = 'IMPLS Bode Plot'
+
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+    utils_plot.plot_result_twinx(data, pars_impls, selected_1, selected_2, 
+                                 par_x, xlabel, ylabel1, ylabel2, xscale, yscale1, yscale2, 
+                                 title, ax1, ax2, plot_type)
 
     plt.show()
 
-def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
+def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear', plot=True):
     """ Plot the Cole-Cole plot with the real and imaginary part of the IMPLS transfer function P against frequency
 
     Parameters
@@ -272,6 +278,9 @@ def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
     """
     # Read the data from freqP-file
     data = pd.read_csv(os.path.join(session_path,output_file), sep=r'\s+')
+
+    # Flip the polarity of the IM P data to follow convention
+    data["ImP"] = data["ImP"]*-1
     
     fig, ax = plt.subplots()
     pars_nyq = {'ImP' : '-Im P [arb. units]'}
@@ -283,10 +292,16 @@ def ColeCole_plot(session_path, output_file, xscale='linear', yscale='linear'):
     weight_norm_nyq = 'log'
     title_nyq = 'Cole-Cole plot'
 
-    ax = utils_plot.plot_result(data, pars_nyq, list(pars_nyq.keys()), par_x_nyq, xlabel_nyq, ylabel_nyq, xscale, yscale, title_nyq, ax,plt.plot,
-                                            legend=False)
+    # ax = utils_plot.plot_result(data, pars_nyq, list(pars_nyq.keys()), par_x_nyq, xlabel_nyq, ylabel_nyq, xscale, yscale, title_nyq, ax,plt.plot,
+    #                                         legend=False)
 
-    plt.show()
+    ax = utils_plot.plot_result_colorbar_single(data['ReP'], data['ImP'], data['freq'], ax, fig, xlabel_nyq, ylabel_nyq, weightlabel_nyq, 
+                                                weight_norm_nyq, title_nyq, xscale, yscale)
+    
+    if plot:
+        plt.show()
+    else:
+        return ax
 
 def plot_IMPLS(session_path, output_file='freqP.dat'):
     """Plot the IMPLS transfer function P

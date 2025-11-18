@@ -129,7 +129,7 @@ def calc_IMPLS(data, isToPlot):
     Parameters
     ----------
     data : dataFrame
-        Pandas dataFrame containing the time and direct recombination rate Rdir which we use as a proxy for luminescence  
+        Pandas dataFrame containing the time and direct recombination current Jdir which we use as a proxy for luminescence  
     isToPlot : list
         List of array indices that will be used in the plotting
 
@@ -151,7 +151,7 @@ def calc_IMPLS(data, isToPlot):
 
     for i in range(numFreqPoints):
         imax=isToPlot[i]
-        freq[i], P[i] = calc_IMPLS_limit_time(data['Rdir'], data['time'], imax)
+        freq[i], P[i] = calc_IMPLS_limit_time(data['PL'], data['t'], imax)
         # we are only interested in the absolute value of the real and imag components:
         ReP[i] =(P[i].real)
         ImP[i] = (P[i].imag)
@@ -205,7 +205,7 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
     integer,string
         returns -1 (failed) or 1 (success), including a message
     """
-    isToPlot, msg = get_integral_bounds(data, time_label='time', f_min=f_min, f_max=f_max, f_steps=f_steps)
+    isToPlot, msg = get_integral_bounds(data, f_min=f_min, f_max=f_max, f_steps=f_steps)
 
     if isToPlot != -1:
         # Integral bounds have been determined, continue to calculate the IMPS
@@ -317,7 +317,7 @@ def plot_IMPLS(session_path, output_file='freqP.dat'):
     # Cole-Cole plot
     ColeCole_plot(session_path,output_file)
 
-def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat',varFile ='varFile.dat', ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
+def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat', varFile = 'none', photoluminescent_layers = ['L2'], ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
     """Create a tVG file and run ZimT with admittance device parameters
 
     Parameters
@@ -347,7 +347,7 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
     tj_name : string, optional
         Name of the tj file where the output device measurements (V, J, G_frac, etc) are stored, by default tj.dat
     varFile : string, optional
-        Name of the var file, by default 'varFile.dat'
+        Name of the var file, by default 'none'
     ini_timeFactor : float, optional
         Constant defining the size of the initial timestep, by default 1e-3
     timeFactor : float, optional
@@ -426,11 +426,18 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
             result, message = utils_gen.run_simulation('zimt', IMPLS_args, session_path, run_mode, verbose=verbose)
 
         if result == 0 or result == 95:
-            # data = read_tj_file(session_path, tj_file_name=tj_name)
-            data = pd.read_csv(varFile, sep=r'\s+')
-            
-            # Integrate direct recombination over x, position within the material
-            data = integrate_fxt_dx(data, 'Rdir', x_name='x', t_name='time')
+            data = read_tj_file(session_path, tj_file_name=tj_name)
+
+            # Define Photoluminescence [arb. units] using recombination current
+            PL = data[f"Jdir{photoluminescent_layers[0]}"]
+
+            # Check if multiple layers are marked as photoluminescent and, if so, combine Jdir values
+            if len(photoluminescent_layers) > 1:
+                for layer in photoluminescent_layers[1:]:
+                    PL += data[f"Jdir{layer}"]
+
+            # Set PL as a new column in data
+            data["PL"] = PL
 
             result, message = get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file)
             return result, message

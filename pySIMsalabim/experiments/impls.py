@@ -19,6 +19,7 @@ from pySIMsalabim.utils import general as utils_gen
 from pySIMsalabim.plots import plot_functions as utils_plot
 from pySIMsalabim.utils.utils import *
 from pySIMsalabim.utils.device_parameters import *
+import pySIMsalabim.aux_funcs.time_domain_DRT as drt
 
 ######### Function Definitions ####################################################################
 
@@ -317,7 +318,7 @@ def plot_IMPLS(session_path, output_file='freqP.dat'):
     # Cole-Cole plot
     ColeCole_plot(session_path,output_file)
 
-def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat', varFile = 'none', photoluminescent_layers = ['L2'], ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
+def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat', tPL_name = 'tPL.dat', varFile = 'none', photoluminescent_layers = ['L2'], ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
     """Create a tVG file and run ZimT with admittance device parameters
 
     Parameters
@@ -384,12 +385,15 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
 
     # Update the filenames with the UUID
     tj_name = os.path.join(session_path, tj_name)
+    tPL_name = os.path.join(session_path, tPL_name)
     output_file = os.path.join(session_path, output_file)
     tVG_name = os.path.join(session_path, tVG_name)
     varFile = os.path.join(session_path, varFile)
     if UUID != '':
         tj_file_name_base, tj_file_name_ext = os.path.splitext(tj_name)
         tj_name = tj_file_name_base + dum_str + tj_file_name_ext 
+        tPL_file_name_base, tPL_file_name_ext = os.path.splitext(tPL_name)
+        tPL_name = tPL_file_name_base + dum_str + tPL_file_name_ext
         tVG_name_base, tVG_name_ext = os.path.splitext(tVG_name)
         tVG_name = tVG_name_base + dum_str + tVG_name_ext
         output_file_base, output_file_ext = os.path.splitext(output_file)
@@ -398,7 +402,6 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
             var_file_base, var_file_ext = os.path.splitext(varFile)
             varFile = var_file_base + dum_str + var_file_ext
             varFile = os.path.join(session_path,varFile)
-    # varFile = 'none' # we don't use a var file for this simulation
 
     # Create tVG
     result, message = create_tVG_IMPLS(V, G_frac, GStep, tVG_name, session_path, f_min, f_max, ini_timeFactor, timeFactor)
@@ -438,6 +441,9 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
 
             # Set PL as a new column in data
             data["PL"] = PL
+
+            # Save the PL data to the tPL.dat file
+            data[["t", "PL"]].to_csv(tPL_name, sep=' ', index=False, float_format="%.6e")
 
             result, message = get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file)
             return result, message

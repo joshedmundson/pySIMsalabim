@@ -28,6 +28,8 @@
 # Exceptions
 !requirements.txt
 !pySIMsalabim/**.py
+!Notebooks/**/*.txt
+!Notebooks/**/*.dat
 # !SIMsalabim/Data/**.txt
 # !SIMsalabim/Docs/**.txt
 # !SIMsalabim/Docs/**.pdf

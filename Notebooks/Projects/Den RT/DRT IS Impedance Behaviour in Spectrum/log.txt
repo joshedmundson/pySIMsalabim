@@ -1,0 +1,41 @@
+Version 5.24
+Size of reals used in simulation: 10 bytes
+Timestamp at start: 26-11-25 09:55:10
+Reading in of parameters:
+Read parameters for layer 1 from L1_parameters.txt
+Read parameters for layer 2 from L2_parameters.txt
+Read parameters for layer 3 from L3_parameters.txt
+R_shunt = -1
+R_series = 0
+tolPois = 1E-6
+currDiffInt = 2
+tolDens = 1.3700236065736E-9
+autoTidy = 0
+tVGFile = /SIMsalabim-web/Simulations/1764150851672375/tVG.txt
+tJFile = /SIMsalabim-web/Simulations/1764150851672375/tj.dat
+varFile = none
+limitDigits = 0
+logFile = log.txt
+Read simulation setup from simulation_setup_zimt.txt
+
+Files used to calculate the generation profile:
+- Data_nk/nk_ITO.txt
+- Data_nk/nk_C60_1.txt
+- Data_nk/nk_MAPI.txt
+- Data_nk/nk_PTAA.txt
+- Data_nk/nk_Au.txt
+- Data_spectrum/AM15G.txt
+
+
+Messages from main solver at time = 0:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =1.2813E-7
+- movement of ions acceptable: TRUE
+- Poisson solver converged: TRUE
+- relative change of densities: 6.1243E-7
+
+1 did not converge.
+Timestamp at end: 26-11-25 09:55:28
+Total run time: 17.456 seconds.

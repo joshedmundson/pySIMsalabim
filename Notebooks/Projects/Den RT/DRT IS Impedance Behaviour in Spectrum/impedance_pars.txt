@@ -1,0 +1,8 @@
+fmin = 0.1
+fmax = 1000000.0
+fstep = 20
+V0 = 0
+delV = 0.01
+G_frac = 1.0
+tVGFile = tVG.txt
+tJFile = tj.dat

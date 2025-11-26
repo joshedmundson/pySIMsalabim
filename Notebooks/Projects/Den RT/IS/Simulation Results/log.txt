@@ -1,0 +1,31 @@
+Version 5.24
+Size of reals used in simulation: 10 bytes
+Timestamp at start: 19-11-25 09:04:16
+Reading in of parameters:
+Read parameters for layer 1 from L1_parameters.txt
+Read parameters for layer 2 from L2_parameters.txt
+Read parameters for layer 3 from L3_parameters.txt
+R_shunt = -1
+R_series = 0
+tolPois = 1E-6
+currDiffInt = 2
+tolDens = 3.40877507067436E-9
+autoTidy = 0
+tVGFile = /SIMsalabim-web/Simulations/1763542980788320/tVG.txt
+tJFile = /SIMsalabim-web/Simulations/1763542980788320/tj.dat
+varFile = none
+limitDigits = 0
+logFile = log.txt
+Read simulation setup from simulation_setup_zimt.txt
+
+Files used to calculate the generation profile:
+- Data_nk/nk_ITO.txt
+- Data_nk/nk_C60_1.txt
+- Data_nk/nk_MAPI.txt
+- Data_nk/nk_PTAA.txt
+- Data_nk/nk_Au.txt
+- Data_spectrum/AM15G.txt
+
+0 did not converge.
+Timestamp at end: 19-11-25 09:04:31
+Total run time: 14.244 seconds.

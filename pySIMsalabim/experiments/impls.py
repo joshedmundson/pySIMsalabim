@@ -220,7 +220,7 @@ def get_IMPLS(data_PL, f_min, f_max, f_steps, session_path, output_file):
         # Failed to determine integral bounds, exit with the error message
         return -1, msg
 
-def IMPLS_plot(session_path, output_file, xscale='log', yscale1='log', yscale2='log', plot_type = plt.plot):
+def IMPLS_plot(session_path, output_file, xscale='log', yscale1='log', yscale2='log', plot_type = plt.plot), title="IMPLS Bode Plot":
     """ Plot the real and imaginary part of the IMPLS transfer function P against frequency
 
     Parameters
@@ -250,7 +250,7 @@ def IMPLS_plot(session_path, output_file, xscale='log', yscale1='log', yscale2='
     xlabel = 'frequency [Hz]'
     ylabel1 = 'Re P [arb. units]'
     ylabel2 = '-Im P [arb. units]'
-    title = 'IMPLS Bode Plot'
+    title = title
 
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()

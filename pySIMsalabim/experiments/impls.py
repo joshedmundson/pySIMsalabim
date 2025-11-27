@@ -123,7 +123,7 @@ def calc_IMPLS_limit_time(phi, time, imax):
     #now return complex IMPLS transfer function P and the corresponding frequency:	
     return freq, P 
 
-def calc_IMPLS(data, isToPlot):
+def calc_IMPLS(data_PL, isToPlot):
     """ Calculate the admittance over the frequency range
     
     Parameters
@@ -151,7 +151,7 @@ def calc_IMPLS(data, isToPlot):
 
     for i in range(numFreqPoints):
         imax=isToPlot[i]
-        freq[i], P[i] = calc_IMPLS_limit_time(data['PL'], data['t'], imax)
+        freq[i], P[i] = calc_IMPLS_limit_time(data_PL['PL'], data_PL['t'], imax)
         # we are only interested in the absolute value of the real and imag components:
         ReP[i] =(P[i].real)
         ImP[i] = (P[i].imag)
@@ -182,13 +182,13 @@ def store_IMPLS_data(session_path, freq, ReP, ImP, output_file):
 
     # print('The data of the IMPS graphs is written to ' + output_file)
 
-def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
+def get_IMPLS(data_PL, f_min, f_max, f_steps, session_path, output_file):
     """Calculate the IMPS from the simulation result
 
     Parameters
     ----------
     data : DataFrame
-        DataFrame with the simulation results
+        DataFrame with the PL simulation results
     f_min : float
         Minimum frequency
     f_max : float
@@ -205,11 +205,11 @@ def get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file):
     integer,string
         returns -1 (failed) or 1 (success), including a message
     """
-    isToPlot, msg = get_integral_bounds(data, f_min=f_min, f_max=f_max, f_steps=f_steps)
+    isToPlot, msg = get_integral_bounds(data_PL, f_min=f_min, f_max=f_max, f_steps=f_steps)
 
     if isToPlot != -1:
         # Integral bounds have been determined, continue to calculate the IMPS
-        freq, ReP, ImP = calc_IMPLS(data, isToPlot)
+        freq, ReP, ImP = calc_IMPLS(data_PL, isToPlot)
 
         # Write IMPS results to a file
         store_IMPLS_data(session_path, freq, ReP, ImP, output_file)

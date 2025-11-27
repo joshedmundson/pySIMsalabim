@@ -1,0 +1,27 @@
+Version 5.24
+Size of reals used in simulation: 8 bytes
+Timestamp at start: 27-11-25 17:01:43
+Reading in of parameters:
+Read parameters for layer 1 from L1_parameters.txt
+Read parameters for layer 2 from L2_parameters.txt
+Read parameters for layer 3 from L3_parameters.txt
+currDiffInt = 2
+autoTidy = 0
+tVGFile = /Users/joshedmundson/SIMsalabim-Installs/main/pySIMsalabim/SIMsalabim/ZimT/tVG_genProfile_none_gFrac_1.0.txt
+tJFile = /Users/joshedmundson/SIMsalabim-Installs/main/pySIMsalabim/SIMsalabim/ZimT/tj_genProfile_none_gFrac_1.0.dat
+varFile = /Users/joshedmundson/SIMsalabim-Installs/main/pySIMsalabim/SIMsalabim/ZimT/none_genProfile_none_gFrac_1.0
+limitDigits = 0
+logFile = log_genProfile_none_gFrac_1.0.txt
+Read simulation setup from /Users/joshedmundson/SIMsalabim-Installs/main/pySIMsalabim/SIMsalabim/ZimT/simulation_setup.txt
+
+Files used to calculate the generation profile:
+- ../Data/nk_ITO.txt
+- ../Data/nk_SiO2.txt
+- ../Data/nk_MAPI.txt
+- ../Data/nk_SiO2.txt
+- ../Data/nk_Au.txt
+- ../Data/AM15G.txt
+
+0 did not converge.
+Timestamp at end: 27-11-25 17:01:47
+Total run time:  3.766 seconds.

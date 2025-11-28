@@ -194,7 +194,7 @@ def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_cur
     # Fit the params for each m
     for m in m_values:
         # Default estimate U, tau, and offset 
-        U0 = np.ones(m)*U_scale_factor
+        U0 = np.ones(m)*U_scale_factor/m
         tau0 = np.geomspace(t[0], t[-1], m)
         offset0 = offset0
         

@@ -1,0 +1,4 @@
+#!/bin/bash 
+
+# A script to run an IMPLS experiment in parallel for several key params
+parallel python impls.py -f_min 1e-2 -f_max 1e10 -f_steps 20 -V_0 0 -fac_G 0.05 -timeout 600 -genProfile calc -UUID l2_N_t_bulk_{} -l2.N_t_bulk {} ::: 0E20 1E21 3E21 1E22

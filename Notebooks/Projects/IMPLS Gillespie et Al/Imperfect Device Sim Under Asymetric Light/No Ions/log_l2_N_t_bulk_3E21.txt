@@ -1,0 +1,207 @@
+Version 5.24
+Size of reals used in simulation: 10 bytes
+Timestamp at start: 28-11-25 14:23:15
+Reading in of parameters:
+Read parameters for layer 1 from L1_parameters.txt
+l2.N_t_bulk = 3E21
+Read parameters for layer 2 from L2_parameters.txt
+Read parameters for layer 3 from L3_parameters.txt
+genProfile = calc
+currDiffInt = 2
+timeout = 600
+autoTidy = 0
+tVGFile = ../../SIMsalabim/ZimT/tVG_l2_N_t_bulk_3E21.txt
+tJFile = ../../SIMsalabim/ZimT/tj_l2_N_t_bulk_3E21.dat
+varFile = ../../SIMsalabim/ZimT/../../SIMsalabim/ZimT/none_l2_N_t_bulk_3E21
+limitDigits = 0
+logFile = log_l2_N_t_bulk_3E21.txt
+Read simulation setup from simulation_setup.txt
+
+Files used to calculate the generation profile:
+- ../Data/nk_ITO.txt
+- ../Data/nk_SiO2.txt
+- ../Data/nk_MAPI.txt
+- ../Data/nk_SiO2.txt
+- ../Data/nk_Au.txt
+- ../Data/AM15G.txt
+
+
+Messages from main solver at time = 0.00005006:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.4659E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 7.9839E-3
+
+Skipping (t,Vext,G_ehp) point at time 0.00005006
+
+Messages from main solver at time = 0.00005106:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =8.3213E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.5250E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005106
+
+Messages from main solver at time = 0.00005208:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.4754E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 3.5145E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005208
+
+Messages from main solver at time = 0.00005313:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.3735E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 3.8659E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005313
+
+Messages from main solver at time = 0.00005419:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =6.4553E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.5079E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005419
+
+Messages from main solver at time = 0.00005527:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =8.4974E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.3483E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005527
+
+Messages from main solver at time = 0.00005638:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.3748E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.2380E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005638
+
+Messages from main solver at time = 0.00005751:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.7306E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.1352E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005751
+
+Messages from main solver at time = 0.00005866:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.9571E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 6.1097E-3
+
+Skipping (t,Vext,G_ehp) point at time 0.00005866
+
+Messages from main solver at time = 0.00005983:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.8687E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.7532E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00005983
+
+Messages from main solver at time = 0.00006103:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.8097E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 2.0830E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006103
+
+Messages from main solver at time = 0.00006225:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.9585E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.7929E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006225
+
+Messages from main solver at time = 0.00006349:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.8587E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.5511E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006349
+
+Messages from main solver at time = 0.00006476:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.8606E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.8198E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006476
+
+Messages from main solver at time = 0.00006606:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.8732E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 2.4508E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006606
+
+Messages from main solver at time = 0.00006738:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.9025E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.6100E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006738
+
+Messages from main solver at time = 0.00006872:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.974E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.3412E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.00006872
+
+Messages from main solver at time = 0.0000701:
+Overall convergence: FALSE
+Iterations perfomed: 2000
+Poisson solver status:
+- delV =9.9299E-7
+- Poisson solver converged: TRUE
+- relative change of densities: 1.6358E-2
+
+Skipping (t,Vext,G_ehp) point at time 0.0000701

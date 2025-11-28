@@ -440,6 +440,15 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
             data["PL"] = PL
 
             result, message = get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file)
+
+            # Save PL as new column in the tj.dat file 
+            with open(tj_name, 'r') as file:
+                lines = file.readlines()
+            with open(tj_name, 'w') as file:
+                col_headings = [lines[0].replace('\n', '') + ' PL']
+                data = [lines[i].replace('\n', '') + f' {PL[i-1]}' for i in range(len(lines))[1:]]
+                file.write('\n'.join(col_headings + data))
+
             return result, message
 
         else:
@@ -548,7 +557,8 @@ if __name__ == "__main__":
 
     # Make the IMPS plots
     if result == 0 or result == 95:
-        plot_IMPLS(session_path, os.path.basename(output_name))
+        # plot_IMPLS(session_path, os.path.basename(output_name))
+        print('Success')
     else:
         print(message)
         sys.exit(1)

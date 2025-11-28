@@ -317,7 +317,7 @@ def plot_IMPLS(session_path, output_file='freqP.dat'):
     # Cole-Cole plot
     ColeCole_plot(session_path,output_file)
 
-def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat', varFile = 'none', photoluminescent_layers = ['L2'], ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
+def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, V, G_frac, GStep = 0.05, run_mode=False, tVG_name = 'tVG.txt', output_file = 'freqP.dat', tj_name = 'tj.dat', varFile = 'none', PL_layers = ['L2'], ini_timeFactor=1e-3, timeFactor=1.02, **kwargs):
     """Create a tVG file and run ZimT with admittance device parameters
 
     Parameters
@@ -348,6 +348,8 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
         Name of the tj file where the output device measurements (V, J, G_frac, etc) are stored, by default tj.dat
     varFile : string, optional
         Name of the var file, by default 'none'
+    PL_layers : list, optional 
+        Layers to use in calculating photoluminescence
     ini_timeFactor : float, optional
         Constant defining the size of the initial timestep, by default 1e-3
     timeFactor : float, optional
@@ -429,17 +431,26 @@ def run_IMPLS_simu(zimt_device_parameters, session_path, f_min, f_max, f_steps, 
             data = read_tj_file(session_path, tj_file_name=tj_name)
 
             # Define Photoluminescence [arb. units] using recombination current
-            PL = data[f"Jdir{photoluminescent_layers[0]}"]
+            PL = data[f"Jdir{PL_layers[0]}"]
 
             # Check if multiple layers are marked as photoluminescent and, if so, combine Jdir values
-            if len(photoluminescent_layers) > 1:
-                for layer in photoluminescent_layers[1:]:
+            if len(PL_layers) > 1:
+                for layer in PL_layers[1:]:
                     PL += data[f"Jdir{layer}"]
 
             # Set PL as a new column in data
             data["PL"] = PL
 
             result, message = get_IMPLS(data, f_min, f_max, f_steps, session_path, output_file)
+
+            # Save PL as new column in the tj.dat file 
+            with open(tj_name, 'r') as file:
+                lines = file.readlines()
+            with open(tj_name, 'w') as file:
+                col_headings = [lines[0].replace('\n', '') + ' PL']
+                data = [lines[i].replace('\n', '') + f' {PL[i-1]}' for i in range(len(lines))[1:]]
+                file.write('\n'.join(col_headings + data))
+
             return result, message
 
         else:
@@ -456,6 +467,7 @@ if __name__ == "__main__":
     V_0 = 1.0 # Float or 'oc' for the open-circuit voltage
     G_frac = 1
     fac_G = 5e-2 # org 2e-1, use around 0.2 for IMPS
+    PL_layers=['L2']
 
     # Define folder and file paths
     session_path = os.path.join('../../','SIMsalabim','ZimT')
@@ -527,6 +539,7 @@ if __name__ == "__main__":
         'tj_name': lambda val: {'tj_name': val},
         'out_name': lambda val: {'output_name': val},
         'UUID': lambda val: {'UUID': val},
+        'PL_layers' : lambda val: {'PL_layers': val.split('-')}
     }
 
     for key in list(cmd_pars_dict.keys()):  # Use list to avoid modifying the dictionary while iterating
@@ -544,11 +557,12 @@ if __name__ == "__main__":
     GStep = G_frac*fac_G
 
     result, message = run_IMPLS_simu(zimt_device_parameters,session_path, f_min, f_max, f_steps, V_0, G_frac, GStep, run_mode=False, tVG_name=tVG_name, 
-                                        output_file = output_name, tj_name = tj_name, ini_timeFactor=ini_timeFactor, timeFactor=timeFactor, cmd_pars=cmd_pars, UUID=UUID)
+                                        output_file = output_name, tj_name = tj_name, PL_layers=PL_layers, ini_timeFactor=ini_timeFactor, timeFactor=timeFactor, cmd_pars=cmd_pars, UUID=UUID)
 
     # Make the IMPS plots
     if result == 0 or result == 95:
-        plot_IMPLS(session_path, os.path.basename(output_name))
+        # plot_IMPLS(session_path, os.path.basename(output_name))
+        print('Success')
     else:
         print(message)
         sys.exit(1)

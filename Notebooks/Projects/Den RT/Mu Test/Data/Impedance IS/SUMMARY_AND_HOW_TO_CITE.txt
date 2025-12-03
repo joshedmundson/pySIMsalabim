@@ -1,0 +1,72 @@
+SIMsalabim drift-diffusion simulations
+
+SIMsalabim version: 5.24
+Source code available at: https://github.com/kostergroup/SIMsalabim
+The Shell version: 1.17
+Source code available at: https://github.com/kostergroup/SIMsalabim-The-Shell
+
+SIMsalabim program: ZimT
+
+Included files:
+- L3_parameters.txt
+- L1_parameters.txt
+- L2_parameters.txt
+- log.txt
+- impedance_pars.txt
+- simulation_setup_zimt.txt
+- freqZ.dat
+- tj.dat
+- tVG.txt
+
+nk/spectrum_files (Used to calculate the generation profile)
+- nk_C60_1.txt
+- nk_glass.txt
+- nk_Au.txt
+- nk_MAPI.txt
+- nk_PTAA.txt
+- nk_ITO.txt
+- AM15G.txt
+
+Simulation type: Impedance
+
+Simulate an impedance spectroscopy experiment with SIMsalabim. 
+The impedance is calculated at the applied voltage. A small one time pertubation at t=0 is introduced at this voltage, defined by the voltage step size. 
+The time step of the pertubation is 0.1% of 1/fmax. The ti            if used_optics:
+me profile is not linear, but the timestep increases by 2% every time point to reduce the number of (unnecessary) datapoints. 
+The light intensity (generation rate) is kept constant. The impedance is calculated using Fourier decomposition, based on the method desrcibed in S.E. Laux, IEEE Trans. Electron Dev. 32 (10), 2028 (1985). 
+Note, we do not integrate from t=0 to infinity, but only from t=0 to the time corresponding to the lowest frequency, i.e. 1/fmin. The integral is calculated using the trapezoidal rule. 
+The results (stored in freqZ.dat) consists of the real and imaginary part (including error margins) of the impedance as a function of the frequency.
+        
+Impedance variables are stored in impedancePars.txt
+Frequency range: 1.00E-01 to 1.00E+06 Hz
+Applied Voltage: 0 V
+Voltage step size: 0.010000 V
+Fractional Generation rate: 1.000E+00 (Fraction of the light intensity/generation rate)
+
+HOW TO CITE:
+
+* SIMsalabim: 
+M. Koopmans, V.M. Le Corre, and L.J.A. Koster, SIMsalabim: An open-source drift-diffusion simulator for semiconductor devices, J. Open Source Softw. 7, 3727 (2022).
+
+* Fourier Decomposition (Impedance)
+S.E. Laux, IEEE Trans. Electron Dev. 32 (10), 2028 (1985)
+
+* nk_C60_1: 
+ACS Appl. Energy Mater. 2019, 2, 9, 6280–6287 https://doi.org/10.1021/acsaem.9b00856
+
+* nk_glass: -No reference provided-
+* nk_Au: -No reference provided-
+* nk_MAPI: 
+Recombination in Perovskite Solar Cells: Significance of Grain Boundaries, Interface Traps, and Defect Ions
+Tejas S. Sherkar, Cristina Momblona, Lidï¿½n Gil-Escrig, Jorge ï¿½vila, Michele Sessolo, Henk J. Bolink, and L. Jan Anton Koster
+ACS Energy Letters 2017 2 (5), 1214-1222
+DOI: 10.1021/acsenergylett.7b00236
+
+* nk_PTAA: 
+ACS Appl. Energy Mater. 2019, 2, 9, 6280–6287 https://doi.org/10.1021/acsaem.9b00856
+
+* nk_ITO: 
+G. F. Burkhard, E. T. Hoke, M. D. McGehee, Adv. Mater., 22, 3293. Accounting for Interference, Scattering, and Electrode Absorption to Make
+Accurate Internal Quantum Efficiency Measurements in Organic and Other Thin Solar Cells
+
+* AM15G: Gueymard, C. A., Myers, D., & Emery, K. (2002). Proposed reference irradiance spectra for solar energy systems testing. Solar energy, 73(6), 443-467 https://doi.org/10.1016/S0038-092X(03)00005-7

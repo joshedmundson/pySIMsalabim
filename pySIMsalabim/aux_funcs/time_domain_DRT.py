@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 # from pySIMsalabim.utils import device_parameters as utils_dev
 import scipy.optimize as so
 import numpy as np
+import torch
 
 ######### Class Definitions #######################################################################
 
@@ -40,58 +41,182 @@ class DRT_Fit_Result:
         self.m = m 
         self.DRT_curve = None
 
-    def set_DRT_curve(self, t):
+    def set_DRT_curve(self, t, backend='numpy', device=torch.device('cpu')):
         """ Sets self.DRT_curve = DRT_curve(t) using the objects attributes
 
         Parameters
         ----------
         t : float or list/numpy.ndarray, shape (n,)
             Time values to calculate the DRT_curve curve
+        backend : {'numpy', 'torch'} (optional)
+            Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
+        device : torch.device (optional)
+            Determines what device is used for matrix ops if backend='torch'.
         
         Returns
         -------
         None
         """
-        self.DRT_curve = DRT_curve(t, self.U, self.tau, self.offset)
+        self.DRT_curve = DRT_curve(t, self.U, self.tau, self.offset, backend=backend, device=device)
 
 
 ######### Function Definitions ####################################################################
 
-def DRT_curve(t, U, tau, offset=0):
-    """Calculate the function 
+## Utility Functions ##
+def numpy_converter(x):
+    """Makes sure arraylike object is a numpy ndarray
+
+    Parameters
+    ----------
+    x : arraylike 
+    
+    Returns
+    -------
+    x : np.ndarray
+
+    """
+    if isinstance(x, np.ndarray):
+        x = x
+    elif isinstance(x, list):
+        x = np.array(x)
+    elif isinstance(x, torch.Tensor):
+        x = x.detach().cpu().numpy()
+    else:
+        raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
+    return x
+    
+def torch_tensor_converter(x, device=torch.device('cpu')):
+    """Makes sure arraylike object is a torch.Tensor
+
+    Parameters
+    ----------
+    x : arraylike 
+    
+    Returns
+    -------
+    x : torch.Tensor on specified devicee
+
+    """
+    # Check if the device being used is an accelerator, and downcast floats if so
+    if device == torch.device('cpu'):
+        if isinstance(x, torch.Tensor):
+            x = x.to(device)
+        elif isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).to(device)
+        elif isinstance(x, list):
+            x = torch.tensor(x, device=device)
+        else:
+            raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
+        return x
+    else: 
+        if isinstance(x, torch.Tensor):
+            x = x.to(torch.float32).to(device)
+        elif isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).to(torch.float32).to(device)
+        elif isinstance(x, list):
+            x = torch.tensor(x, dtype=torch.float32, device=device)
+        else:
+            raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
+        return x
+
+#######################
+
+def DRT_curve_numpy(t, U, tau, offset=0):
+    """Use numpy.ndarray objects to calculate the function 
         DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
     
     Parameters
     ----------
-    t : float or list/numpy.ndarray, shape (n,)
+    t : numpy.ndarray, shape (n,)
         The time values over which the simulated impedance-adjacent experiment takes place
-    U : list/numpy.ndarray with shape (m,)
+    U : numpy.ndarray with shape (m,)
         Coefficients for the exponential decay functions such that U[i] is the coefficient of 
         exp(-t/tau[i])
-    tau : list/numpy.ndarray with shape (m,)
+    tau : numpy.ndarray with shape (m,)
         The distribution of relaxation times
     offset : float (optional)
-        Offest applied to the sum over exponential decay functions
-        
+        Initial guess of the DRT_curve offset value
+    device : torch.device 
+        The specified device for torch based computation if backend='torch'. 
+    
     Returns 
     -------
     calculated_DRT_curve : numpy.ndarray with shape (n,)
         DRT_curve at all time values in t
     """
-    
-    # Check to make sure all input has been formatted as numpy arrays
-    U = np.array(U)
-    tau = np.array(tau)
-    
-    if not isinstance(t, list) and not isinstance(t, np.ndarray):
-        t = np.array([t])
-    elif not isinstance(t, np.ndarray):
-        t = np.array(t)
-    
     # Calculate DRT_curve(t) for all values in t
     calculated_DRT_curve = (U @ np.exp(-np.outer(1/tau, t))) + offset
-    
+
     return calculated_DRT_curve
+
+
+def DRT_curve_pytorch(t, U, tau, offset=0):
+    """Use torch.Tensor objects to calculate the function
+        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+    
+    Parameters
+    ----------
+    t : torch.Tensor, shape (n,)
+        The time values over which the simulated impedance-adjacent experiment takes place
+    U : torch.Tensor, shape (m,)
+        Coefficients for the exponential decay functions such that U[i] is the coefficient of 
+        exp(-t/tau[i])
+    tau : torch.Tensor with shape (m,)
+        The distribution of relaxation times
+    offset : float (optional)
+        Initial guess of the DRT_curve offset value
+    
+    Returns 
+    -------
+    calculated_DRT_curve : torch.Tensor with shape (n,)
+        DRT_curve at all time values in t
+    """
+
+    # Calculate DRT_curve(t) for all values in t
+    calculated_DRT_curve = (U @ torch.exp(-torch.outer(1/tau, t))) + offset
+
+    return calculated_DRT_curve
+
+
+def DRT_curve(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
+    """Calculate the function
+        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+    
+    Parameters
+    ----------
+    t : array-like, shape (n,)
+        The time values over which the simulated impedance-adjacent experiment takes place
+    U : array-like, shape (m,)
+        Coefficients for the exponential decay functions such that U[i] is the coefficient of 
+        exp(-t/tau[i])
+    tau : array-like with shape (m,)
+        The distribution of relaxation times
+    offset : float (optional)
+        Initial guess of the DRT_curve offset value
+    backend : {'numpy', 'torch'} (optional)
+        Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
+    device : torch.device (optional)
+        Determines what device is used for matrix ops if backend='torch'.
+    
+    Returns 
+    -------
+    calculated_DRT_curve : numpy.ndarray or torch.Tensor with shape (n,)
+        DRT_curve at all time values in t
+    """
+    
+    if backend == 'numpy':
+        t = numpy_converter(t)
+        U = numpy_converter(U)
+        tau = numpy_converter(tau)
+
+        return DRT_curve_numpy(t, U, tau, offset=offset)
+
+    elif backend == 'torch':
+        t = torch_tensor_converter(t, device=device)
+        U = torch_tensor_converter(U, device=device)
+        tau = torch_tensor_converter(tau, device=device)
+
+        return DRT_curve_pytorch(t, U, tau, offset)
 
 
 def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
@@ -205,6 +330,139 @@ def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_cur
         fits.append(fit)
         
     return fits
+
+
+def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
+    """Fits an DRT_curve(t) curve to a function y(t) using a grid-based approach
+
+        Uses a linear approach to fit 
+            DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        to a function y by finding the optimal values for the parameters 
+            U = [U_1, U_2, ..., U_m] 
+            tau = [tau_1, tau_2, ..., tau_m]
+            
+        Parameters
+        ----------
+        t : (list/numpy.ndarray) with shape (n,)
+            The time values over which the function y is known
+        y : list/numpy.ndarray with shape (n,)
+            The values of y(t) that DRT_curve will be fitted to
+        tau : list/numpy.ndarray with shape (m,)
+            Grid of tau values used in calculating DRT_curve(t)
+        U_scale_factor : float
+            Determines the magnitude and polarity of initial guess for U
+        offset0 : float (optional)
+            Initial guess of the DRT_curve offset value
+        set_DRT_curve : bool (optional)
+            If true, will set the DRT_curve attribute of the returned DRT_Fit_Result object using t
+        backend : {'numpy', 'torch'} (optional)
+            Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
+        device : {'cpu', 'acc', torch.device} (optional)
+            Determines what device is used for matrix ops if backend='torch'. 'cpu' runs all calculations
+            on the CPU and 'acc' will run calculations on a accelerator (cuda, mps, etc) if available.
+            Any passed torch.device object will be used.
+        kwargs
+            Keyword arguments passed to scipy.optimize.least_squares for fitting
         
+        Returns
+        -------
+        drt_fit : DRT_Fit_Result 
+            With attributes as follows
+                U : numpy.ndarray or torch.Tensor, shape (m,)
+                    Fitted [U_1, U_2, ..., U_m] array
+                tau : numpy.ndarray or torch.Tensor, shape (m, )
+                    Fitted [tau_1, tau_2, ..., tau_m] array
+                offset : numpy.float64
+                    Fitted value for offset
+                cost : numpy.float64
+                    The value of the cost function 
+                        F(x) = 0.5 * sum(rho(error_i(x)**2), i = 0, ..., n - 1)
+                    at the solution. By default, rho(z) = z. See scipy.optimize.least_squares for details
+                m : int
+                    Number of lifetimes/coefficients used in DRT_curve, given by the length of U/tau
+        """
+    # Create the error function 
+    if backend == 'numpy':
+        # Make sure passed parameters are numpy.ndarrays
+        t = numpy_converter(t)
+        y = numpy_converter(y)
+        tau = numpy_converter(tau)
+
+        # Create initial guess for U 
+        m = len(tau)
+        U0 = U_scale_factor*np.ones(m)/m
+
+        # Create an initial array-like guess of variables
+        x0 = np.concatenate((U0, [offset]))
+
+        # Define the error function
+        error = lambda x : y - DRT_curve(t, x[:-1], tau, offset=x[-1], backend='numpy')
+
+        # Minimise the error function using scipy
+        fit = so.least_squares(error, x0=x0, **kwargs)
+
+        # Store the results in a DRT_Fit object
+        drt_fit = DRT_Fit_Result(fit.x[:-1], tau, fit.x[-1], fit.cost, m)
+
+        # Set the DRT_curve curve for DRT_Fit_Result result if calc_DRT_curve=True
+        drt_fit.set_DRT_curve(t) if set_DRT_curve else None
+
+        # Assume params is of dimension 2 x m, where m is the number of tau/U_values
+        return drt_fit
+
+    elif backend == 'torch':
+        # Check which device should be used for calculations 
+        if device == 'cpu': 
+            device = torch.device('cpu')
+        elif device == 'acc':
+            if torch.accelerator.is_available(): 
+                device = torch.accelerator.current_accelerator() 
+            else:
+                raise Exception("Accelerator unavailable")
+        elif isinstance(device, torch.device):
+            device = device
+        else:
+            raise Exception("Device needs to be 'cpu', 'acc', or of type torch.device")
+
+        # Make sure passed parameters are torch.Tensor objects
+        t = torch_tensor_converter(t, device=device)
+        y = torch_tensor_converter(y, device=device)
+        tau = torch_tensor_converter(tau, device=device)
         
+        # Create initial guess for U 
+        m = tau.size(dim=0)
+        U0 = U_scale_factor*torch.ones(m, device=device)/m
+
+        # Create an initial array-like guess of variables
+        x0 = torch.cat((U0, torch.tensor([offset], device=device, dtype=torch.float32)))
+
+        error = lambda x : y - DRT_curve(t, x[:-1], tau, offset=x[-1], backend='torch', device=device)
+
+        # Minimise the error function using scipy
+        fit = so.least_squares(error, x0=x0, **kwargs)
+
+        # Store the results in a DRT_Fit object
+        drt_fit = DRT_Fit_Result(fit.x[:-1], tau, fit.x[-1], fit.cost, m)
+
+        # Set the DRT_curve curve for DRT_Fit_Result result if calc_DRT_curve=True
+        drt_fit.set_DRT_curve(t) if set_DRT_curve else None
+
+        # Assume params is of dimension 2 x m, where m is the number of tau/U_values
+        return drt_fit
+
+
+def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
+    max_iters = 10 
+    # NOTE: we probably want to set the offset and scale factor guesses ourselves
+    for i in range(len(max_iters)):
+        cap_fit = fit_DRT_curve_linear(t, y, tau, U_scale_factor=U_scale_factor, offset=offset, 
+                                       set_DRT_curve=set_DRT_curve, backend=backend, device=device, bounds=(0, np.inf), **kwargs)
         
+        # Modify the values you then want to fit to 
+        y = y - cap_fit.DRT_curve
+
+        # Fit inductive curve
+        cap_fit = fit_DRT_curve_linear(t, y, tau, U_scale_factor=U_scale_factor, offset=offset, 
+                                       set_DRT_curve=set_DRT_curve, backend=backend, device=device, bounds=(-np.inf, 0), **kwargs)
+        
+        y = y - cap_fit.DRT_curve

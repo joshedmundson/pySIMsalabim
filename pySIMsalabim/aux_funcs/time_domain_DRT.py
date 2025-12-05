@@ -7,6 +7,12 @@ import scipy.optimize as so
 import numpy as np
 import torch
 
+######### References ##############################################################################
+
+# [1] M. Schönleber, D. Klotz, and E. Ivers-Tiffée, ‘A Method for Improving the Robustness of linear 
+# Kramers-Kronig Validity Tests’, Electrochimica Acta, vol. 131, pp. 20–27, June 2014, 
+# doi: 10.1016/j.electacta.2014.01.034.
+
 ######### Class Definitions #######################################################################
 
 class DRT_Fit_Result:
@@ -60,9 +66,36 @@ class DRT_Fit_Result:
         self.DRT_curve = DRT_curve(t, self.U, self.tau, self.offset, backend=backend, device=device)
 
 
+class DRTLinearModel(torch.nn.Module):
+    def __init__(self, tau, U_scale_factor=1, bounds=None, device=torch.device('cpu')):
+        super().__init__()
+        self.device = device
+        self.tau = torch.tensor(tau, device=self.device, dtype=torch.float32)
+        self.m = len(tau)
+        
+        # Define the parameters object, which will hold U and tau
+        self.params = torch.nn.Parameter(torch.concat((torch.ones(self.m, device=device, dtype=torch.float32)/self.m*U_scale_factor, 
+                                                       torch.tensor([0], device=device, dtype=torch.float32))))
+        
+        # Set bounds for U values if given 
+        if bounds is not None:
+            self.lower_bound = bounds[0]
+            self.upper_bound = bounds[0]
+        else:
+            self.lower_bound = None
+            self.upper_bound = None
+        
+    def forward(self, t):
+        if self.lower_bound is not None:
+            params_clamped = torch.clamp(self.params, self.lower_bound, self.upper_bound)
+        else:
+            params_clamped = self.params
+        return DRT_curve_pytorch(t, params_clamped[:-1], self.tau, params_clamped[-1])
+
+
 ######### Function Definitions ####################################################################
 
-## Utility Functions ##
+# Utility Functions #####################################
 def numpy_converter(x):
     """Makes sure arraylike object is a numpy ndarray
 
@@ -118,8 +151,26 @@ def torch_tensor_converter(x, device=torch.device('cpu')):
         else:
             raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
         return x
+    
+# Regularisation Functions ##############################
+    
+def IC_ratio_reg(U, alpha=0.01, backend='numpy', device=torch.device('cpu')):
+    # Regularisation parameter inspired by the mu criterion in [1]
+    if backend == 'numpy':
+        U = numpy_converter(U)
+        return alpha*(np.absolute(U[np.where(U < 0)]).sum() / np.absolute(U[np.where(U >= 0)]).sum())
+    elif backend == 'torch':
+        U = torch_tensor_converter(U, device=device)
+        return alpha*(torch.absolute(U[torch.where(U < 0)]).sum() / torch.absolute(U[torch.where(U >= 0)]).sum())
 
-#######################
+def ridge_reg(x, alpha=0.01):
+    x = numpy_converter(x)
+    return alpha*np.square(x)
+
+def lasso_reg(x, alpha=0.01):
+    x = numpy_converter(x)
+    return 
+#########################################################
 
 def DRT_curve_numpy(t, U, tau, offset=0):
     """Use numpy.ndarray objects to calculate the function 
@@ -332,7 +383,7 @@ def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_cur
     return fits
 
 
-def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
+def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
     """Fits an DRT_curve(t) curve to a function y(t) using a grid-based approach
 
         Uses a linear approach to fit 
@@ -397,7 +448,7 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=Tr
 
         # Define the error function
         error = lambda x : y - DRT_curve(t, x[:-1], tau, offset=x[-1], backend='numpy')
-
+        
         # Minimise the error function using scipy
         fit = so.least_squares(error, x0=x0, **kwargs)
 
@@ -466,3 +517,61 @@ def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
                                        set_DRT_curve=set_DRT_curve, backend=backend, device=device, bounds=(-np.inf, 0), **kwargs)
         
         y = y - cap_fit.DRT_curve
+        
+        
+def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, alpha=0, max_iter=200, device='cpu', bounds=None, **kwargs):
+    
+    # Get the device type
+    if device == 'cpu': 
+            device = torch.device('cpu')
+    elif device == 'acc':
+        if torch.accelerator.is_available(): 
+            device = torch.accelerator.current_accelerator() 
+        else:
+            raise Exception("Accelerator unavailable")
+    elif isinstance(device, torch.device):
+        device = device
+    else:
+        raise Exception("Device needs to be 'cpu', 'acc', or of type torch.device")
+    
+    # Convert input into tensors 
+    t = torch_tensor_converter(t, device=device)
+    y = torch_tensor_converter(y, device=device)
+    
+    # Construct the pytorch model
+    linear_model = DRTLinearModel(tau, U_scale_factor=U_scale_factor, bounds=bounds, device=device)
+    
+    # Define an optimizer 
+    optimizer = torch.optim.LBFGS(linear_model.parameters(), max_iter=20, history_size=10)
+    
+    # Loss History
+    loss_history = []
+    
+    def closure():
+        optimizer.zero_grad()
+        predictions = linear_model(t)
+                
+        # Define loss using our IC regulariser 
+        loss = torch.sum((predictions - y)**2) + alpha*IC_ratio_reg(linear_model.params[:-1], alpha=alpha, backend='torch', device=device)
+        
+        loss.backward()
+        loss_history.append(loss.item())
+        return loss
+    
+    for epoch in range(max_iter // 20):
+        optimizer.step(closure)
+        
+        if len(loss_history) > 1:
+            if abs(loss_history[-1] - loss_history[-2]) < 1e-9:
+                break
+    
+    # Return results 
+    final_loss = loss_history[-1]
+    final_params = linear_model.params.detach().cpu().numpy()
+    U = final_params[:-1]
+    offset = final_params[-1]
+    
+    final_fit_result = DRT_Fit_Result(U, tau, offset, final_loss, m=len(tau))
+    final_fit_result.set_DRT_curve(t)
+    
+    return final_fit_result

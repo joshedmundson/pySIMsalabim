@@ -131,27 +131,16 @@ def torch_tensor_converter(x, device=torch.device('cpu')):
 
     """
     # Check if the device being used is an accelerator, and downcast floats if so
-    if device == torch.device('cpu'):
-        if isinstance(x, torch.Tensor):
-            x = x.to(device)
-        elif isinstance(x, np.ndarray):
-            x = torch.from_numpy(x).to(device)
-        elif isinstance(x, list):
-            x = torch.tensor(x, device=device)
-        else:
-            raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
-        return x
-    else: 
-        if isinstance(x, torch.Tensor):
-            x = x.to(torch.float32).to(device)
-        elif isinstance(x, np.ndarray):
-            x = torch.from_numpy(x).to(torch.float32).to(device)
-        elif isinstance(x, list):
-            x = torch.tensor(x, dtype=torch.float32, device=device)
-        else:
-            raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
-        return x
-    
+    if isinstance(x, torch.Tensor):
+        x = x.to(torch.float32).to(device)
+    elif isinstance(x, np.ndarray):
+        x = torch.from_numpy(x).to(torch.float32).to(device)
+    elif isinstance(x, list):
+        x = torch.tensor(x, dtype=torch.float32, device=device)
+    else:
+        raise TypeError("Argument is not of type np.array, list, or torch.Tensor")
+    return x
+
 # Regularisation Functions ##############################
     
 def IC_ratio_reg(U, alpha=0.01, backend='numpy', device=torch.device('cpu')):
@@ -225,7 +214,7 @@ def DRT_curve_pytorch(t, U, tau, offset=0):
 
     # Calculate DRT_curve(t) for all values in t
     calculated_DRT_curve = (U @ torch.exp(-torch.outer(1/tau, t))) + offset
-
+    
     return calculated_DRT_curve
 
 
@@ -519,7 +508,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
         y = y - cap_fit.DRT_curve
         
         
-def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, alpha=0, max_iter=200, device='cpu', bounds=None, **kwargs):
+def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
     
     # Get the device type
     if device == 'cpu': 
@@ -558,7 +547,7 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
         loss_history.append(loss.item())
         return loss
     
-    for epoch in range(max_iter // 20):
+    for epoch in range(max_iter // max_step_iter):
         optimizer.step(closure)
         
         if len(loss_history) > 1:

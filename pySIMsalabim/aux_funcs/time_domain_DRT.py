@@ -508,7 +508,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
         y = y - cap_fit.DRT_curve
         
         
-def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
+def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
     
     # Get the device type
     if device == 'cpu': 
@@ -523,6 +523,18 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
     else:
         raise Exception("Device needs to be 'cpu', 'acc', or of type torch.device")
     
+    # Set U scale factor 
+    if U_scale_factor == 'Auto':
+        U_scale_factor = np.max(y) - np.min(y)
+    else: 
+        U_scale_factor = U_scale_factor
+    
+    # Set offset
+    if offset == 'Auto':
+        offset = np.min(y)
+    else: 
+        offset = offset
+        
     # Convert input into tensors 
     t = torch_tensor_converter(t, device=device)
     y = torch_tensor_converter(y, device=device)

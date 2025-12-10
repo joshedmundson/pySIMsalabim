@@ -80,7 +80,7 @@ class DRTLinearModel(torch.nn.Module):
         # Set bounds for U values if given 
         if bounds is not None:
             self.lower_bound = bounds[0]
-            self.upper_bound = bounds[0]
+            self.upper_bound = bounds[1]
         else:
             self.lower_bound = None
             self.upper_bound = None
@@ -561,6 +561,9 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', 
     
     for epoch in range(max_iter // max_step_iter):
         optimizer.step(closure)
+        if bounds:
+            for param in linear_model.parameters():
+                param.data.clamp_(bounds[0], bounds[1])
         
         if len(loss_history) > 1:
             if abs(loss_history[-1] - loss_history[-2]) < 1e-9:

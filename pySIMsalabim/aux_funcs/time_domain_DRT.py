@@ -67,7 +67,7 @@ class DRT_Fit_Result:
 
 
 class DRTLinearModel(torch.nn.Module):
-    def __init__(self, tau, U_scale_factor=1, bounds=None, device=torch.device('cpu')):
+    def __init__(self, tau, U_scale_factor=1, offset=0, bounds=None, device=torch.device('cpu')):
         super().__init__()
         self.device = device
         self.tau = torch.tensor(tau, device=self.device, dtype=torch.float32)
@@ -75,12 +75,12 @@ class DRTLinearModel(torch.nn.Module):
         
         # Define the parameters object, which will hold U and tau
         self.params = torch.nn.Parameter(torch.concat((torch.ones(self.m, device=device, dtype=torch.float32)/self.m*U_scale_factor, 
-                                                       torch.tensor([0], device=device, dtype=torch.float32))))
+                                                       torch.tensor([offset], device=device, dtype=torch.float32))))
         
         # Set bounds for U values if given 
         if bounds is not None:
             self.lower_bound = bounds[0]
-            self.upper_bound = bounds[0]
+            self.upper_bound = bounds[1]
         else:
             self.lower_bound = None
             self.upper_bound = None
@@ -508,7 +508,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
         y = y - cap_fit.DRT_curve
         
         
-def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
+def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
     
     # Get the device type
     if device == 'cpu': 
@@ -523,15 +523,27 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
     else:
         raise Exception("Device needs to be 'cpu', 'acc', or of type torch.device")
     
+    # Set U scale factor 
+    if U_scale_factor == 'Auto':
+        U_scale_factor = np.max(y) - np.min(y)
+    else: 
+        U_scale_factor = U_scale_factor
+    
+    # Set offset
+    if offset == 'Auto':
+        offset = np.min(y)
+    else: 
+        offset = offset
+        
     # Convert input into tensors 
     t = torch_tensor_converter(t, device=device)
     y = torch_tensor_converter(y, device=device)
     
     # Construct the pytorch model
-    linear_model = DRTLinearModel(tau, U_scale_factor=U_scale_factor, bounds=bounds, device=device)
+    linear_model = DRTLinearModel(tau, U_scale_factor=U_scale_factor, offset=offset, bounds=bounds, device=device)
     
     # Define an optimizer 
-    optimizer = torch.optim.LBFGS(linear_model.parameters(), max_iter=20, history_size=10)
+    optimizer = torch.optim.LBFGS(linear_model.parameters(), max_iter=max_step_iter, history_size=10)
     
     # Loss History
     loss_history = []
@@ -549,6 +561,9 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
     
     for epoch in range(max_iter // max_step_iter):
         optimizer.step(closure)
+        if bounds:
+            for param in linear_model.parameters():
+                param.data.clamp_(bounds[0], bounds[1])
         
         if len(loss_history) > 1:
             if abs(loss_history[-1] - loss_history[-2]) < 1e-9:
@@ -561,6 +576,8 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor=1, offset=0, set_DRT_cu
     offset = final_params[-1]
     
     final_fit_result = DRT_Fit_Result(U, tau, offset, final_loss, m=len(tau))
-    final_fit_result.set_DRT_curve(t)
+    
+    if set_DRT_curve:
+        final_fit_result.set_DRT_curve(t)
     
     return final_fit_result

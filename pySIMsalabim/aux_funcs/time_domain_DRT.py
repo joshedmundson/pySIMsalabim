@@ -489,23 +489,6 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
 
         # Assume params is of dimension 2 x m, where m is the number of tau/U_values
         return drt_fit
-
-
-def fit_DRT_curve_checkerboard(t, y, tau, U_scale_factor=1, offset=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
-    max_iters = 10 
-    # NOTE: we probably want to set the offset and scale factor guesses ourselves
-    for i in range(len(max_iters)):
-        cap_fit = fit_DRT_curve_linear(t, y, tau, U_scale_factor=U_scale_factor, offset=offset, 
-                                       set_DRT_curve=set_DRT_curve, backend=backend, device=device, bounds=(0, np.inf), **kwargs)
-        
-        # Modify the values you then want to fit to 
-        y = y - cap_fit.DRT_curve
-
-        # Fit inductive curve
-        cap_fit = fit_DRT_curve_linear(t, y, tau, U_scale_factor=U_scale_factor, offset=offset, 
-                                       set_DRT_curve=set_DRT_curve, backend=backend, device=device, bounds=(-np.inf, 0), **kwargs)
-        
-        y = y - cap_fit.DRT_curve
         
         
 def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
@@ -581,3 +564,102 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', 
         final_fit_result.set_DRT_curve(t)
     
     return final_fit_result
+
+
+def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=200, device='cpu', **kwargs):
+    
+    max_iters = 30
+    offset = y.min()
+    U_values = np.zeros(len(tau))
+    
+    y_cap = y
+
+    cap_U_values = np.zeros(len(tau))
+    ind_U_values = np.zeros(len(tau))
+    
+    MSE = []
+    cost = []
+    
+    # NOTE: we probably want to set the offset and scale factor guesses ourselves
+    for i in range(max_iters):
+        
+        # Set scale params for capacitive effects and fit
+        cap_fit = fit_DRT_curve_linear_torch(t, y_cap, tau, device=device, offset=y_cap.min(), alpha=alpha, 
+                                       max_step_iter=max_step_iter, max_iter=max_iter, bounds=(0, np.inf), **kwargs)
+        
+        # Add the fit to U_values
+        cap_U_values = cap_fit.U
+        
+        # Remove the capacitive effects from y
+        y_ind = y - cap_fit.DRT_curve
+        
+        # Set the inductive scale params and fit by doing a capacitive fit on an inverted function
+        ind_fit = fit_DRT_curve_linear_torch(t, -y_ind, tau, device=device, offset=np.min(-y_ind), alpha=alpha, 
+                                       max_step_iter=max_step_iter, max_iter=max_iter, bounds=(0, np.inf), **kwargs)
+        
+        # Add the fit to U_values 
+        ind_U_values = -ind_fit.U
+        
+        y_cap = y + ind_fit.DRT_curve
+        
+        # Once the fit is done, return a fit object with the results and a dummy cost of 0
+        U_values = cap_U_values + ind_U_values
+        fit = DRT_Fit_Result(U_values, tau, offset, 0, len(tau))
+        
+        # Calculate the cost 
+        fit.set_DRT_curve(t)
+        MSE.append(np.mean((y-fit.DRT_curve)**2))
+        cost.append(fit.cost)
+        
+        plt.plot(t, y, label='Sim')
+        plt.plot(t, cap_fit.DRT_curve, linestyle='-.', label='cap')
+        plt.plot(t, y.max() - ind_fit.DRT_curve, linestyle=':', label='ind')
+        plt.xscale('log')
+        plt.xlabel("$t$ [$\\text{s}$]")
+        plt.ylabel("$J$")
+        plt.xscale('log')
+        plt.title("Perfect Impedance Curve")
+        plt.legend()
+        plt.show()
+        
+        plt.plot(tau, cap_U_values, label='Cap', linestyle='-.')
+        plt.plot(tau, -ind_U_values, label='ind', linestyle=':')
+        plt.xscale('log')
+        plt.xlabel("$\\tau$ [$\\text{s}$]")
+        plt.ylabel("$U$")
+        plt.xscale('log')
+        plt.title("Distribution of Relaxation Times")
+        plt.show()
+        
+        plt.plot(t, y - cap_fit.DRT_curve, linestyle='-.', label='cap')
+        plt.xscale('log')
+        plt.xlabel("$t$ [$\\text{s}$]")
+        plt.ylabel("Residual $J - \hat{J}_{\\text{cap}}$")
+        plt.xscale('log')
+        plt.title("Residuals post capacitive fit")
+        plt.legend()
+        plt.show()
+    
+    # Once the fit is done, return a fit object with the results and a dummy cost of 0
+    U_values = cap_U_values + ind_U_values
+    fit = DRT_Fit_Result(U_values, tau, offset, 0, len(tau))
+    
+    # Calculate the cost 
+    fit.set_DRT_curve(t)
+    fit.cost = np.sum((fit.DRT_curve - y)**2) + alpha*IC_ratio_reg(fit.U, alpha=alpha, backend='torch', device=device)
+    
+    plt.plot(range(max_iters), MSE)
+    min_mse_index = np.argmin(MSE)
+    plt.axvline(min_mse_index)
+    plt.xlabel("Iteration")
+    plt.ylabel("MSE")
+    plt.show()
+    
+    plt.plot(range(max_iters), cost)
+    min_cost_index = np.argmin(cost)
+    plt.axvline(min_cost_index)
+    plt.xlabel("Iteration")
+    plt.ylabel("Cost")
+    plt.show()
+    
+    return fit

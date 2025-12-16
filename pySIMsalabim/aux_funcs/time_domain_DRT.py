@@ -16,7 +16,7 @@ import torch
 ######### Class Definitions #######################################################################
 
 class DRT_Fit_Result:
-    """ A class that bundles together all results from fitting a DRT_curve curve to data
+    """ A class that bundles together all results from fitting a predict_y curve to data
 
     Attributes
     ----------
@@ -31,13 +31,13 @@ class DRT_Fit_Result:
             F(x) = 0.5 * sum(rho(error_i(x)**2), i = 0, ..., n - 1)
         at the solution. By default, rho(z) = z. See scipy.optimize.least_squares for details
     m : int
-        Number of lifetimes/coefficients used in DRT_curve, given by the length of U/tau
+        Number of lifetimes/coefficients used in predict_y, given by the length of U/tau
     
     Methods
     -------
-    set_DRT_curve(t)
-        Calculates DRT_curve(t) using the object's attributes (self.U, self.tau, self.offset)
-        and sets self.DRT_curve equal to the result 
+    predict_y(t)
+        Calculates predict_y(t) using the object's attributes (self.U, self.tau, self.offset)
+        and sets self.predict_y equal to the result 
     """
     def __init__(self, U, tau, offset, cost, m):
         self.U = U
@@ -45,15 +45,15 @@ class DRT_Fit_Result:
         self.offset = offset 
         self.cost = cost
         self.m = m 
-        self.DRT_curve = None
+        self.y = None
 
-    def set_DRT_curve(self, t, backend='numpy', device=torch.device('cpu')):
-        """ Sets self.DRT_curve = DRT_curve(t) using the objects attributes
+    def predict_y(self, t, backend='numpy', device=torch.device('cpu')):
+        """ Sets self.predict_y = predict_y(t) using the objects attributes
 
         Parameters
         ----------
         t : float or list/numpy.ndarray, shape (n,)
-            Time values to calculate the DRT_curve curve
+            Time values to calculate the predict_y curve
         backend : {'numpy', 'torch'} (optional)
             Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
         device : torch.device (optional)
@@ -63,7 +63,7 @@ class DRT_Fit_Result:
         -------
         None
         """
-        self.DRT_curve = DRT_curve(t, self.U, self.tau, self.offset, backend=backend, device=device)
+        self.y = predict_y(t, self.U, self.tau, self.offset, backend=backend, device=device)
 
 
 class DRTLinearModel(torch.nn.Module):
@@ -90,7 +90,7 @@ class DRTLinearModel(torch.nn.Module):
             params_clamped = torch.clamp(self.params, self.lower_bound, self.upper_bound)
         else:
             params_clamped = self.params
-        return DRT_curve_pytorch(t, params_clamped[:-1], self.tau, params_clamped[-1])
+        return predict_y_torch(t, params_clamped[:-1], self.tau, params_clamped[-1])
 
 
 ######### Function Definitions ####################################################################
@@ -159,11 +159,12 @@ def ridge_reg(x, alpha=0.01):
 def lasso_reg(x, alpha=0.01):
     x = numpy_converter(x)
     return 
-#########################################################
 
-def DRT_curve_numpy(t, U, tau, offset=0):
+# Fitting Functions #####################################
+
+def predict_y_numpy(t, U, tau, offset=0):
     """Use numpy.ndarray objects to calculate the function 
-        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
     
     Parameters
     ----------
@@ -175,24 +176,24 @@ def DRT_curve_numpy(t, U, tau, offset=0):
     tau : numpy.ndarray with shape (m,)
         The distribution of relaxation times
     offset : float (optional)
-        Initial guess of the DRT_curve offset value
+        Initial guess of the predict_y offset value
     device : torch.device 
         The specified device for torch based computation if backend='torch'. 
     
     Returns 
     -------
-    calculated_DRT_curve : numpy.ndarray with shape (n,)
-        DRT_curve at all time values in t
+    predicted_y : numpy.ndarray with shape (n,)
+        predict_y at all time values in t
     """
-    # Calculate DRT_curve(t) for all values in t
-    calculated_DRT_curve = (U @ np.exp(-np.outer(1/tau, t))) + offset
+    # Calculate predict_y(t) for all values in t
+    predicted_y = (U @ np.exp(-np.outer(1/tau, t))) + offset
 
-    return calculated_DRT_curve
+    return predicted_y
 
 
-def DRT_curve_pytorch(t, U, tau, offset=0):
+def predict_y_torch(t, U, tau, offset=0):
     """Use torch.Tensor objects to calculate the function
-        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
     
     Parameters
     ----------
@@ -204,23 +205,23 @@ def DRT_curve_pytorch(t, U, tau, offset=0):
     tau : torch.Tensor with shape (m,)
         The distribution of relaxation times
     offset : float (optional)
-        Initial guess of the DRT_curve offset value
+        Initial guess of the predict_y offset value
     
     Returns 
     -------
-    calculated_DRT_curve : torch.Tensor with shape (n,)
-        DRT_curve at all time values in t
+    predicted_y : torch.Tensor with shape (n,)
+        predict_y at all time values in t
     """
 
-    # Calculate DRT_curve(t) for all values in t
-    calculated_DRT_curve = (U @ torch.exp(-torch.outer(1/tau, t))) + offset
+    # Calculate predict_y(t) for all values in t
+    predicted_y = (U @ torch.exp(-torch.outer(1/tau, t))) + offset
     
-    return calculated_DRT_curve
+    return predicted_y
 
 
-def DRT_curve(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
+def predict_y(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
     """Calculate the function
-        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
     
     Parameters
     ----------
@@ -232,7 +233,7 @@ def DRT_curve(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
     tau : array-like with shape (m,)
         The distribution of relaxation times
     offset : float (optional)
-        Initial guess of the DRT_curve offset value
+        Initial guess of the predict_y offset value
     backend : {'numpy', 'torch'} (optional)
         Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
     device : torch.device (optional)
@@ -240,8 +241,8 @@ def DRT_curve(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
     
     Returns 
     -------
-    calculated_DRT_curve : numpy.ndarray or torch.Tensor with shape (n,)
-        DRT_curve at all time values in t
+    predicted_y : numpy.ndarray or torch.Tensor with shape (n,)
+        predict_y at all time values in t
     """
     
     if backend == 'numpy':
@@ -249,21 +250,21 @@ def DRT_curve(t, U, tau, offset=0, backend='numpy', device=torch.device('cpu')):
         U = numpy_converter(U)
         tau = numpy_converter(tau)
 
-        return DRT_curve_numpy(t, U, tau, offset=offset)
+        return predict_y_numpy(t, U, tau, offset=offset)
 
     elif backend == 'torch':
         t = torch_tensor_converter(t, device=device)
         U = torch_tensor_converter(U, device=device)
         tau = torch_tensor_converter(tau, device=device)
 
-        return DRT_curve_pytorch(t, U, tau, offset)
+        return predict_y_torch(t, U, tau, offset)
 
 
-def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
-    """Fits an DRT_curve(t) curve to a function y(t)
+def groningen_fit(t, y, U0, tau0, offset0=0, predict_y=True, **kwargs):
+    """Fits a DRT to a function y(t) using a non-linear approach
 
     Uses a non-linear approach to fit 
-        DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
     to a function y by finding the optimal values for the parameters 
         U = [U_1, U_2, ..., U_m] 
         tau = [tau_1, tau_2, ..., tau_m]
@@ -273,15 +274,15 @@ def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
     t : (list/numpy.ndarray) with shape (n,)
         The time values over which the function y is known
     y : list/numpy.ndarray with shape (n,)
-        The values of y(t) that DRT_curve will be fitted to
+        The values of y(t) that predict_y will be fitted to
     U0 : list/numpy.ndarray with shape (m,)
         Initial guess of U values for fitting 
     tau0 : list/numpy.ndarray with shape (m,)
         Initial guess of tau values for fitting
     offset0 : float (optional)
-        Initial guess of the DRT_curve offset value
-    set_DRT_curve : bool (optional)
-        If true, will set the DRT_curve attribute of the returned DRT_Fit_Result object using t
+        Initial guess of the predict_y offset value
+    predict_y : bool (optional)
+        If true, will set the predict_y attribute of the returned DRT_Fit_Result object using t
     kwargs
         Keyword arguments passed to scipy.optimize.least_squares for fitting
     
@@ -300,7 +301,7 @@ def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
                     F(x) = 0.5 * sum(rho(error_i(x)**2), i = 0, ..., n - 1)
                 at the solution. By default, rho(z) = z. See scipy.optimize.least_squares for details
             m : int
-                Number of lifetimes/coefficients used in DRT_curve, given by the length of U/tau
+                Number of lifetimes/coefficients used in predict_y, given by the length of U/tau
     """
     
     # Make sure passed parameters are numpy.ndarrays
@@ -314,7 +315,7 @@ def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
     initial_params = np.concatenate((U0, tau0, [offset0]))
     
     # Create the error function 
-    error = lambda x : y - DRT_curve(t, x[:m], x[m:-1], offset=x[-1])
+    error = lambda x : y - predict_y(t, x[:m], x[m:-1], offset=x[-1])
     
     # Fit the params using scipy. Note x_scale='jac' makes for better fits than the default value
     fit = so.least_squares(error, x0=initial_params, x_scale='jac', **kwargs)
@@ -322,30 +323,30 @@ def fit_DRT_curve(t, y, U0, tau0, offset0=0, set_DRT_curve=True, **kwargs):
     # Store the fit results
     drt_fit = DRT_Fit_Result(fit.x[:m], fit.x[m:-1], fit.x[-1], fit.cost, m)
 
-    # Set the DRT_curve curves for each DRT_Fit_Result result if calc_DRT_curve=True
-    drt_fit.set_DRT_curve(t) if set_DRT_curve else None
+    # Set the predict_y curves for each DRT_Fit_Result result if calc_predict_y=True
+    drt_fit.predict_y(t) if predict_y else None
     
     return drt_fit
 
 
-def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_curve=True, **kwargs):
-    """ Runs fit_DRT_curve over multiple m values 
+def multi_groningen_fit(t, y, m_values, U_scale_factor=0, offset0=0, predict_y=True, **kwargs):
+    """ Runs groningen_fit over multiple m values 
     
     Parameters
     ----------
     t : list or numpy.ndarray, shape (n,)
         Time values over which y(t) is known
     y : list or numpy.ndarray, shape(n, )
-        y(t) values each DRT_curve curve is fitted to
+        y(t) values each predict_y curve is fitted to
     m_values : list, shape (i,)
-        Various m values for fit_DRT_curve, where m is the number of coefficients/lifetimes
-        in DRT_curve(t)
+        Various m values for groningen_fit, where m is the number of coefficients/lifetimes
+        in predict_y(t)
     U_scale_factor : float
-        Controls the scale for the intial guess of the coefficients U0 passed to fit_DRT_curve
+        Controls the scale for the intial guess of the coefficients U0 passed to groningen_fit
     offset0 : float 
-        Initial guess for the offset passed to fit_DRT_curve
-    set_DRT_curve : bool (optional)
-        If true, will set the DRT_curve attribute of the returned DRT_Fit_Result objects using t
+        Initial guess for the offset passed to groningen_fit
+    predict_y : bool (optional)
+        If true, will set the predict_y attribute of the returned DRT_Fit_Result objects using t
     kwargs 
         Keyword arguments passed to scipy.optimize.least_squares for fitting
 
@@ -364,7 +365,7 @@ def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_cur
         offset0 = offset0
         
         # Fit the curve
-        fit = fit_DRT_curve(t, y, U0, tau0, offset0=offset0, set_DRT_curve=set_DRT_curve, **kwargs)
+        fit = groningen_fit(t, y, U0, tau0, offset0=offset0, predict_y=predict_y, **kwargs)
         
         # Add to fits
         fits.append(fit)
@@ -372,11 +373,11 @@ def multi_fit_DRT_curve(t, y, m_values, U_scale_factor=0, offset0=0, set_DRT_cur
     return fits
 
 
-def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT_curve=True, backend='numpy', device='cpu', **kwargs):
-    """Fits an DRT_curve(t) curve to a function y(t) using a grid-based approach
+def least_squares_linear_fit(t, y, tau, U_scale_factor=1, offset=0, alpha=0, predict_y=True, backend='numpy', device='cpu', **kwargs):
+    """Fits an predict_y(t) curve to a function y(t) using a grid-based approach
 
         Uses a linear approach to fit 
-            DRT_curve(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+            predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
         to a function y by finding the optimal values for the parameters 
             U = [U_1, U_2, ..., U_m] 
             tau = [tau_1, tau_2, ..., tau_m]
@@ -386,15 +387,15 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
         t : (list/numpy.ndarray) with shape (n,)
             The time values over which the function y is known
         y : list/numpy.ndarray with shape (n,)
-            The values of y(t) that DRT_curve will be fitted to
+            The values of y(t) that predict_y will be fitted to
         tau : list/numpy.ndarray with shape (m,)
-            Grid of tau values used in calculating DRT_curve(t)
+            Grid of tau values used in calculating predict_y(t)
         U_scale_factor : float
             Determines the magnitude and polarity of initial guess for U
         offset0 : float (optional)
-            Initial guess of the DRT_curve offset value
-        set_DRT_curve : bool (optional)
-            If true, will set the DRT_curve attribute of the returned DRT_Fit_Result object using t
+            Initial guess of the predict_y offset value
+        predict_y : bool (optional)
+            If true, will set the predict_y attribute of the returned DRT_Fit_Result object using t
         backend : {'numpy', 'torch'} (optional)
             Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
         device : {'cpu', 'acc', torch.device} (optional)
@@ -419,7 +420,7 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
                         F(x) = 0.5 * sum(rho(error_i(x)**2), i = 0, ..., n - 1)
                     at the solution. By default, rho(z) = z. See scipy.optimize.least_squares for details
                 m : int
-                    Number of lifetimes/coefficients used in DRT_curve, given by the length of U/tau
+                    Number of lifetimes/coefficients used in predict_y, given by the length of U/tau
         """
     # Create the error function 
     if backend == 'numpy':
@@ -436,7 +437,7 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
         x0 = np.concatenate((U0, [offset]))
 
         # Define the error function
-        error = lambda x : y - DRT_curve(t, x[:-1], tau, offset=x[-1], backend='numpy')
+        error = lambda x : y - predict_y(t, x[:-1], tau, offset=x[-1], backend='numpy')
         
         # Minimise the error function using scipy
         fit = so.least_squares(error, x0=x0, **kwargs)
@@ -444,8 +445,8 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
         # Store the results in a DRT_Fit object
         drt_fit = DRT_Fit_Result(fit.x[:-1], tau, fit.x[-1], fit.cost, m)
 
-        # Set the DRT_curve curve for DRT_Fit_Result result if calc_DRT_curve=True
-        drt_fit.set_DRT_curve(t) if set_DRT_curve else None
+        # Set the predict_y curve for DRT_Fit_Result result if calc_predict_y=True
+        drt_fit.predict_y(t) if predict_y else None
 
         # Assume params is of dimension 2 x m, where m is the number of tau/U_values
         return drt_fit
@@ -476,7 +477,7 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
         # Create an initial array-like guess of variables
         x0 = torch.cat((U0, torch.tensor([offset], device=device, dtype=torch.float32)))
 
-        error = lambda x : y - DRT_curve(t, x[:-1], tau, offset=x[-1], backend='torch', device=device)
+        error = lambda x : y - predict_y(t, x[:-1], tau, offset=x[-1], backend='torch', device=device)
 
         # Minimise the error function using scipy
         fit = so.least_squares(error, x0=x0, **kwargs)
@@ -484,14 +485,54 @@ def fit_DRT_curve_linear(t, y, tau, U_scale_factor=1, offset=0, alpha=0, set_DRT
         # Store the results in a DRT_Fit object
         drt_fit = DRT_Fit_Result(fit.x[:-1], tau, fit.x[-1], fit.cost, m)
 
-        # Set the DRT_curve curve for DRT_Fit_Result result if calc_DRT_curve=True
-        drt_fit.set_DRT_curve(t) if set_DRT_curve else None
+        # Set the predict_y curve for DRT_Fit_Result result if calc_predict_y=True
+        drt_fit.predict_y(t) if predict_y else None
 
         # Assume params is of dimension 2 x m, where m is the number of tau/U_values
         return drt_fit
         
         
-def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', set_DRT_curve=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
+def alpha_linear_fit(t, y, tau, U_scale_factor='Auto', offset='Auto', predict_y=True, alpha=0, max_step_iter=20, max_iter=200, device='cpu', bounds=None, **kwargs):
+    """Fits a distribution of relaxation times (tau) to a decay process (y) using gradient descent 
+
+    Parameters
+    ----------
+        t : arraylike, shape (n,)
+            Time values for y(t)
+        y : arraylike, shape (n,)
+            Function y(t) for fitting
+        tau : arraylike, shape (m,)
+            Relaxation times used in the fit
+        U_scale_factor : {'Auto' or float} (optional)
+            Scaling parameter for initial U guess
+        offset : {'Auto' or float'} (optional)
+            Initial fit offset guess
+        predict_y : bool
+            If true, will set the predict_y attribute of the returned DRT_Fit_Result object using t
+        alpha : int or float
+            mu regularisation strength in alpha_linear_fit. Default 0 means there is no regularisation
+        max_step_iter : int (optional)
+            Maximum number of optimizer iterations per gradient descent step
+        max_iter : int (optional)
+            Maximum number of total optimizer iterations
+        device : {'cpu', 'acc', torch.device} (optional)
+            Determines which device is used for torch-based calculations. 'cpu' runs all calculations
+            on the CPU and 'acc' will run calculations on a accelerator (cuda, mps, etc) if available.
+            Any passed torch.device object will be used.  
+        bounds : tuple, shape (2,)
+            Bounds for parameters U
+
+    Raises
+    ------
+        Exception: Accelerator device isn't available
+        Exception: Device isn't one of the 3 permissible options
+
+    Returns
+    -------
+        final_fit_result : DRT_Fit_Result
+            Object containing key fit data
+    """
+    
     
     # Get the device type
     if device == 'cpu': 
@@ -531,44 +572,87 @@ def fit_DRT_curve_linear_torch(t, y, tau, U_scale_factor='Auto', offset='Auto', 
     # Loss History
     loss_history = []
     
+    # Define the closure function to be called for each improvement step of the optimizer
     def closure():
+        # Set gradients of optimiser with respect to all weights to 0
         optimizer.zero_grad()
+        
+        # Predict y with the current DRT
         predictions = linear_model(t)
                 
-        # Define loss using our IC regulariser 
+        # Calculate the difference between y and the model prediction, including the IC regulariser 
         loss = torch.sum((predictions - y)**2) + alpha*IC_ratio_reg(linear_model.params[:-1], alpha=alpha, backend='torch', device=device)
         
+        # Calculate the gradients of the loss function with regards to each parameter
         loss.backward()
+        
+        # Record the numerical loss
         loss_history.append(loss.item())
         return loss
     
     for epoch in range(max_iter // max_step_iter):
+        # Update parameters by taking a 'step' along the inverse of the weight gradient
         optimizer.step(closure)
+        
+        # Check if bounding is applied to the U parameters, and 'clamp' the values within the bounds if so
         if bounds:
             for param in linear_model.parameters():
                 param.data.clamp_(bounds[0], bounds[1])
-        
-        if len(loss_history) > 1:
-            if abs(loss_history[-1] - loss_history[-2]) < 1e-9:
-                break
     
-    # Return results 
+    # Get final loss, and final 
     final_loss = loss_history[-1]
     final_params = linear_model.params.detach().cpu().numpy()
     U = final_params[:-1]
     offset = final_params[-1]
     
+    # Bundle results into a DRT_Fit_Result object
     final_fit_result = DRT_Fit_Result(U, tau, offset, final_loss, m=len(tau))
     
-    if set_DRT_curve:
-        final_fit_result.set_DRT_curve(t)
+    if predict_y:
+        final_fit_result.predict_y(t)
     
     return final_fit_result
 
 
-def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=200, device='cpu', **kwargs):
+def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500, max_step_fit_iter=20, device='cpu', **kwargs):
+    """Fits a distribution of relaxation times (tau) to a decay process (t) using the 'checkerboard' method
     
-    max_iters = 30
+    The checkerboard method operates as follows:
+        1. Set y_cap = y
+        2. Call alpha_linear_fit on y_cap to fit capacitive lifetimes 
+        3. Remove capacitive fit from y to get y_ind
+        4. Call alpha_linear_fit on y_ind to fit inductive lifetimes
+        5. Remove inductive effects from y to get y_cap
+        6. Repeat 2-5 for the specified number of iterations 
+
+    Parameters
+    ----------
+    t : arraylike, shape (n,)
+        Time values for y(t)
+    y : arraylike, shape (n,)
+        Function y(t) for fitting
+    tau : arraylike, shape (m,)
+        Relaxation times used in the fit
+    alpha : int or float
+        mu regularisation strength in alpha_linear_fit. Default 0 means there is no regularisation
+    checkerboard_iter : int (optional)
+        Number of times the checkerboard iteration algorithm is run
+    max_fit_iter : int (optional)
+        Maximum iterations for each alpha_linear_fit call
+    max_step_fit_iter : int (optional)
+        Maximum iterations per step for each alpha_linear_fit call
+    device : {'cpu', 'acc', torch.device} (optional)
+        Determines which device is used to torch-based calculations. 'cpu' runs all calculations
+        on the CPU and 'acc' will run calculations on a accelerator (cuda, mps, etc) if available.
+        Any passed torch.device object will be used.    
+    kwargs : 
+        Key word arguments passed to alpha_linear_fit
+    
+    Returns
+    -------
+        fits : list, shape (checkerboard_iter,)
+            List of fit objects corresponding to each iteration of the checkerboard fit algorithm 
+    """
     offset = y[-1]
     U_values = np.zeros(len(tau))
     
@@ -586,28 +670,28 @@ def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=20
     cost = []
     
     # NOTE: we probably want to set the offset and scale factor guesses ourselves
-    for i in range(max_iters):
+    for i in range(checkerboard_iter):
         
         # Set scale params for capacitive effects and fit
-        cap_fit = fit_DRT_curve_linear_torch(t, y_cap, tau, device=device, offset=cap_offset, alpha=alpha, 
-                                       max_step_iter=max_step_iter, max_iter=max_iter, bounds=(0, np.inf), **kwargs)
+        cap_fit = alpha_linear_fit(t, y_cap, tau, device=device, offset=cap_offset, alpha=alpha, 
+                                       max_step_iter=max_step_fit_iter, max_iter=max_fit_iter, bounds=(0, np.inf), **kwargs)
         
         # Add the fit to U_values
         cap_U_values = cap_fit.U
         
         # Remove the capacitive effects from y
-        y_ind = y - cap_fit.DRT_curve
+        y_ind = y - cap_fit.y
         ind_offset = y_ind[-1]
         
         # Set the inductive scale params and fit by doing a capacitive fit on an inverted function
-        ind_fit = fit_DRT_curve_linear_torch(t, -y_ind, tau, device=device, offset=-ind_offset, alpha=alpha, 
-                                       max_step_iter=max_step_iter, max_iter=max_iter, bounds=(0, np.inf), **kwargs)
+        ind_fit = alpha_linear_fit(t, -y_ind, tau, device=device, offset=-ind_offset, alpha=alpha, 
+                                       max_step_iter=max_step_fit_iter, max_iter=max_fit_iter, bounds=(0, np.inf), **kwargs)
         
         # Add the fit to U_values 
         ind_U_values = -ind_fit.U
 
         # Remove the inductive effects from the curve for the next iteration
-        y_cap = y + ind_fit.DRT_curve
+        y_cap = y + ind_fit.y
         cap_offset = y_cap[-1]
         
         # Once the fit is done, return a fit object with the results and a dummy cost of 0
@@ -615,14 +699,14 @@ def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=20
         fit = DRT_Fit_Result(U_values, tau, offset, 0, len(tau))
         
         # Calculate the cost 
-        fit.set_DRT_curve(t)
-        MSE.append(np.mean((y-fit.DRT_curve)**2))
-        cost.append(np.sum((fit.DRT_curve - y)**2) + alpha*IC_ratio_reg(fit.U, alpha=alpha, backend='torch', device=device))
+        fit.predict_y(t)
+        MSE.append(np.mean((y-fit.y)**2))
+        cost.append(np.sum((fit.y - y)**2) + alpha*IC_ratio_reg(fit.U, alpha=alpha, backend='torch', device=device))
         fits.append(fit)
         
         plt.plot(t, y, label='Sim')
-        plt.plot(t, cap_fit.DRT_curve, linestyle='-.', label='cap')
-        plt.plot(t, -ind_fit.DRT_curve, linestyle=':', label='ind')
+        plt.plot(t, cap_fit.y, linestyle='-.', label='cap')
+        plt.plot(t, -ind_fit.y, linestyle=':', label='ind')
         plt.xscale('log')
         plt.xlabel("$t$ [$\\text{s}$]")
         plt.ylabel("$J$")
@@ -640,7 +724,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=20
         plt.title(f"Distribution of Relaxation Times {i}")
         plt.show()
         
-        plt.plot(t, y - cap_fit.DRT_curve, linestyle='-.', label='cap')
+        plt.plot(t, y - cap_fit.y, linestyle='-.', label='cap')
         plt.xscale('log')
         plt.xlabel("$t$ [$\\text{s}$]")
         plt.ylabel("Residual $J - \hat{J}_{\\text{cap}}$")
@@ -649,7 +733,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=20
         plt.legend()
         plt.show()
     
-    plt.plot(range(max_iters), MSE)
+    plt.plot(range(checkerboard_iter), MSE)
     min_mse_index = np.argmin(MSE)
     plt.axvline(min_mse_index, label=f"index: {min_mse_index}")
     plt.xlabel("Iteration")
@@ -657,7 +741,7 @@ def fit_DRT_curve_checkerboard(t, y, tau, alpha=0, max_step_iter=20, max_iter=20
     plt.legend()
     plt.show()
     
-    plt.plot(range(max_iters), cost)
+    plt.plot(range(checkerboard_iter), cost)
     min_cost_index = np.argmin(cost)
     plt.axvline(min_cost_index)
     plt.xlabel("Iteration")

@@ -598,6 +598,10 @@ def alpha_linear_fit(t, y, tau, U_scale_factor='Auto', offset='Auto', predict_y=
         if bounds:
             for param in linear_model.parameters():
                 param.data.clamp_(bounds[0], bounds[1])
+
+        if len(loss_history) > 1:
+            if abs(loss_history[-1] - loss_history[-2]) < 1e-9:
+                break
     
     # Get final loss, and final 
     final_loss = loss_history[-1]
@@ -614,7 +618,7 @@ def alpha_linear_fit(t, y, tau, U_scale_factor='Auto', offset='Auto', predict_y=
     return final_fit_result
 
 
-def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500, max_step_fit_iter=20, device='cpu', **kwargs):
+def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500, max_step_fit_iter=20, device='cpu', verbose=False, **kwargs):
     """Fits a distribution of relaxation times (tau) to a decay process (t) using the 'checkerboard' method
     
     The checkerboard method operates as follows:
@@ -702,50 +706,53 @@ def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500,
         fit.predict_y(t)
         MSE.append(np.mean((y-fit.y)**2))
         cost.append(np.sum((fit.y - y)**2) + alpha*IC_ratio_reg(fit.U, alpha=alpha, backend='torch', device=device))
+        fit.cost = cost
         fits.append(fit)
         
-        plt.plot(t, y, label='Sim')
-        plt.plot(t, cap_fit.y, linestyle='-.', label='cap')
-        plt.plot(t, -ind_fit.y, linestyle=':', label='ind')
-        plt.xscale('log')
-        plt.xlabel("$t$ [$\\text{s}$]")
-        plt.ylabel("$J$")
-        plt.xscale('log')
-        plt.title(f"Perfect Impedance Curve {i}")
+        if verbose == True:
+            plt.plot(t, y, label='Sim')
+            plt.plot(t, cap_fit.y, linestyle='-.', label='cap')
+            plt.plot(t, -ind_fit.y, linestyle=':', label='ind')
+            plt.xscale('log')
+            plt.xlabel("$t$ [$\\text{s}$]")
+            plt.ylabel("$J$")
+            plt.xscale('log')
+            plt.title(f"Perfect Impedance Curve {i}")
+            plt.legend()
+            plt.show()
+            
+            plt.plot(tau, cap_U_values, label='Cap', linestyle='-.')
+            plt.plot(tau, -ind_U_values, label='ind', linestyle=':')
+            plt.xscale('log')
+            plt.xlabel("$\\tau$ [$\\text{s}$]")
+            plt.ylabel("$U$")
+            plt.xscale('log')
+            plt.title(f"Distribution of Relaxation Times {i}")
+            plt.show()
+            
+            plt.plot(t, y - cap_fit.y, linestyle='-.', label='cap')
+            plt.xscale('log')
+            plt.xlabel("$t$ [$\\text{s}$]")
+            plt.ylabel("Residual $J - \hat{J}_{\\text{cap}}$")
+            plt.xscale('log')
+            plt.title(f"Residuals post capacitive fit{i}")
+            plt.legend()
+            plt.show()
+    
+    if verbose == True:
+        plt.plot(range(checkerboard_iter), MSE)
+        min_mse_index = np.argmin(MSE)
+        plt.axvline(min_mse_index, label=f"index: {min_mse_index}")
+        plt.xlabel("Iteration")
+        plt.ylabel("MSE")
         plt.legend()
         plt.show()
         
-        plt.plot(tau, cap_U_values, label='Cap', linestyle='-.')
-        plt.plot(tau, -ind_U_values, label='ind', linestyle=':')
-        plt.xscale('log')
-        plt.xlabel("$\\tau$ [$\\text{s}$]")
-        plt.ylabel("$U$")
-        plt.xscale('log')
-        plt.title(f"Distribution of Relaxation Times {i}")
+        plt.plot(range(checkerboard_iter), cost)
+        min_cost_index = np.argmin(cost)
+        plt.axvline(min_cost_index)
+        plt.xlabel("Iteration")
+        plt.ylabel("Cost")
         plt.show()
-        
-        plt.plot(t, y - cap_fit.y, linestyle='-.', label='cap')
-        plt.xscale('log')
-        plt.xlabel("$t$ [$\\text{s}$]")
-        plt.ylabel("Residual $J - \hat{J}_{\\text{cap}}$")
-        plt.xscale('log')
-        plt.title(f"Residuals post capacitive fit{i}")
-        plt.legend()
-        plt.show()
-    
-    plt.plot(range(checkerboard_iter), MSE)
-    min_mse_index = np.argmin(MSE)
-    plt.axvline(min_mse_index, label=f"index: {min_mse_index}")
-    plt.xlabel("Iteration")
-    plt.ylabel("MSE")
-    plt.legend()
-    plt.show()
-    
-    plt.plot(range(checkerboard_iter), cost)
-    min_cost_index = np.argmin(cost)
-    plt.axvline(min_cost_index)
-    plt.xlabel("Iteration")
-    plt.ylabel("Cost")
-    plt.show()
     
     return fits

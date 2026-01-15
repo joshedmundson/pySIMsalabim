@@ -6,12 +6,19 @@ import matplotlib.pyplot as plt
 import scipy.optimize as so
 import numpy as np
 import torch
+import osqp
+from scipy.sparse import csc_matrix
 
 ######### References ##############################################################################
 
 # [1] M. Schönleber, D. Klotz, and E. Ivers-Tiffée, ‘A Method for Improving the Robustness of linear 
 # Kramers-Kronig Validity Tests’, Electrochimica Acta, vol. 131, pp. 20–27, June 2014, 
 # doi: 10.1016/j.electacta.2014.01.034.
+
+# [2] B. Stellato, G. Banjac, P. Goulart, A. Bemporad, and S. Boyd, ‘OSQP: an operator splitting solver 
+# for quadratic programs’, Math. Prog. Comp., vol. 12, no. 4, pp. 637–672, Dec. 2020, 
+# doi: 10.1007/s12532-020-00179-2.
+
 
 ######### Class Definitions #######################################################################
 
@@ -755,4 +762,98 @@ def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500,
         plt.ylabel("Cost")
         plt.show()
     
+    return fits
+
+
+def osqp_linear_fit(time, y, tau, offset='Auto', bounds=None):
+    """
+    Converts the linear fit problem to a convex quadratic program and minimises using 
+    the Operator Splitting Quadratic Program (OSQP) package solver [2].
+    """
+    # Remove offset from signal to prep for quadratic form
+    offset = y[-1] if offset == 'Auto' else offset
+    y = y - offset
+    
+    # Step 1: Convert the DRT function form into the form Y = R@U
+    m = len(tau)
+    n = len(time)
+    R = np.exp(-np.outer(1/tau, time)).T 
+    
+    # Step 2: Convert the least squares problem into a quadratic program
+    P = 2*R.T@R 
+    P = csc_matrix((1/2)*(P.T + P))
+    q = -2*R.T@y
+    
+    # Step 3: Set the constraints matrices
+    A = csc_matrix(np.identity(m))
+    ones = np.ones((m, 1))
+    l = bounds[0]*ones if bounds is not None else -np.inf*ones
+    u = bounds[1]*ones if bounds is not None else np.inf*ones
+    
+    # Step 4: Solve 
+    osqp_model = osqp.OSQP()
+    osqp_model.setup(P, q, A, l, u, verbose=False)
+    osqp_result = osqp_model.solve()
+    
+    # Step 5: Package results
+    U = osqp_result.x
+    y_model = R@U
+    MSE = np.mean((y-y_model)**2)
+    fit = DRT_Fit_Result(U, tau, offset=offset, cost=MSE, m=m)
+    fit.y = y_model + offset
+    
+    return fit
+
+def osqp_checkerboard_fit(time, y, tau, offset='Auto', checkerboard_iters=100):
+    
+    offset = y[-1] if offset == 'Auto' else offset
+    U_values = np.zeros(len(tau))
+    
+    y_cap = y
+
+    cap_U_values = np.zeros(len(tau))
+    ind_U_values = np.zeros(len(tau))
+
+    cap_offset = offset
+    ind_offset = 0
+
+    fits = []
+    
+    MSE = []
+    cost = []
+    
+    # NOTE: we probably want to set the offset and scale factor guesses ourselves
+    for i in range(checkerboard_iters):
+        
+        # Set scale params for capacitive effects and fit
+        cap_fit = osqp_linear_fit(time, y_cap, tau, offset=cap_offset, bounds=(0, np.inf))
+        
+        # Add the fit to U_values
+        cap_U_values = cap_fit.U
+        
+        # Remove the capacitive effects from y
+        y_ind = y - cap_fit.y
+        ind_offset = y_ind[-1]
+        
+        # Set the inductive scale params and fit by doing a capacitive fit on an inverted function
+        ind_fit = osqp_linear_fit(time, -y_ind, tau, offset=ind_offset, bounds=(0, np.inf))
+        
+        # Add the fit to U_values 
+        ind_U_values = -ind_fit.U
+
+        # Remove the inductive effects from the curve for the next iteration
+        y_cap = y + ind_fit.y
+        cap_offset = y_cap[-1]
+        
+        # Once the fit is done, return a fit object with the results and a dummy cost of 0
+        U_values = cap_U_values + ind_U_values
+        fit = DRT_Fit_Result(U_values, tau, offset, 0, len(tau))
+        
+        # Calculate the cost 
+        fit.predict_y(time)
+        MSE_value = np.mean((y-fit.y)**2)
+        MSE.append(MSE_value)
+        fit.cost = MSE_value
+        fits.append(fit)
+        
     return fits

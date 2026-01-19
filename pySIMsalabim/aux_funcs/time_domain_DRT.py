@@ -713,7 +713,7 @@ def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500,
         fit.predict_y(t)
         MSE.append(np.mean((y-fit.y)**2))
         cost.append(np.sum((fit.y - y)**2) + alpha*IC_ratio_reg(fit.U, alpha=alpha, backend='torch', device=device))
-        fit.cost = cost
+        fit.cost = np.mean((y-fit.y)**2)
         fits.append(fit)
         
         if verbose == True:

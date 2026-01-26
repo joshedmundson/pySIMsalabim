@@ -765,14 +765,17 @@ def checkerboard_fit(t, y, tau, alpha=0, checkerboard_iter=30, max_fit_iter=500,
     return fits
 
 
-def osqp_linear_fit(time, y, tau, offset='Auto', bounds=None):
+def osqp_linear_fit(time, y, tau, offset='Auto', scaling='minmax', bounds=None):
     """
     Converts the linear fit problem to a convex quadratic program and minimises using 
     the Operator Splitting Quadratic Program (OSQP) package solver [2].
     """
-    # Remove offset from signal to prep for quadratic form
+    # Scale signal to prep for quadratic form
     offset = y[-1] if offset == 'Auto' else offset
     y = y - offset
+    y_max = y.max()
+    y_min = y.min()
+    y = (y - y_min)/(y_max-y_min)
     
     # Step 1: Convert the DRT function form into the form Y = R@U
     m = len(tau)
@@ -795,10 +798,12 @@ def osqp_linear_fit(time, y, tau, offset='Auto', bounds=None):
     osqp_model.setup(P, q, A, l, u, verbose=False)
     osqp_result = osqp_model.solve()
     
-    # Step 5: Package results
-    U = osqp_result.x
-    y_model = R@U
+    # Step 5: Package results and apply scaling
+    U = (y_max-y_min)*osqp_result.x
+    y_model = R@U + y_min
+
     MSE = np.mean((y-y_model)**2)
+
     fit = DRT_Fit_Result(U, tau, offset=offset, cost=MSE, m=m)
     fit.y = y_model + offset
     

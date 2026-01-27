@@ -186,7 +186,7 @@ def mean_square_error(y, y_model):
 
 
 # Fitting Functions #####################################
-def osqp_linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
+def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
     """
     Performs a linear fit of 
         y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
@@ -280,7 +280,7 @@ def osqp_linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=Tru
     
     return fit
 
-def osqp_checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=50, fit_scaling=True):
+def checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=50, fit_scaling=True):
     """
     Performs a 'checkerboard' DRT fit by iteratively fitting capacitive and inductive effects in supplied data (y)
     
@@ -301,7 +301,7 @@ def osqp_checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters
     checkerboard_iters : int (optional)
         The number of iterations to perform using the checkerboard fitting method
     fit_scaling : bool
-        Determines whether minmax scaling is used during each call of the 'osqp_linear_fit' method. 
+        Determines whether minmax scaling is used during each call of the 'linear_fit' method. 
         Can impact the smoothness of the MSE and R^2 over many iterations. Default True.
 
     Returns
@@ -343,7 +343,7 @@ def osqp_checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters
     for i in range(checkerboard_iters):
         
         # Set scale params for capacitive effects and fit
-        cap_fit = osqp_linear_fit(time, y_cap, tau=tau, offset=cap_offset, scaling=fit_scaling, bounds=(0, np.inf))
+        cap_fit = linear_fit(time, y_cap, tau=tau, offset=cap_offset, scaling=fit_scaling, bounds=(0, np.inf))
         
         # Add the fit to U_values
         cap_U_values = cap_fit.U
@@ -353,7 +353,7 @@ def osqp_checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters
         ind_offset = y_ind[-1]
         
         # Set the inductive scale params and fit by doing a capacitive fit on an inverted function
-        ind_fit = osqp_linear_fit(time, -y_ind, tau=tau, offset=ind_offset, scaling=fit_scaling, bounds=(0, np.inf))
+        ind_fit = linear_fit(time, -y_ind, tau=tau, offset=ind_offset, scaling=fit_scaling, bounds=(0, np.inf))
         
         # Add the fit to U_values 
         ind_U_values = -ind_fit.U
@@ -427,6 +427,7 @@ def plot_y(time, y_model=None, y=None, xaxis_label='Time [s]', yaxis_label='y(t)
     ax.set_xlabel(xaxis_label)
     ax.set_ylabel(yaxis_label)
     ax.set_title(plot_title)
+    ax.legend()
     
     # Return axis if called for, otherwise show the figure
     if return_ax:
@@ -530,7 +531,8 @@ def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xa
 
     # Calculate the cumulative U values
     cumulative_U_model = [np.sum(U_model[:i]) for i in range(len(U_model))]
-    cumulative_U_analytic = [np.sum(U_analytic[:i]) for i in range(len(U_analytic))]
+    if tau_analytic is not None and U_analytic is not None:
+        cumulative_U_analytic = [np.sum(U_analytic[:i]) for i in range(len(U_analytic))]
     
     # Set up the plot
     fig, ax = plt.subplots()

@@ -635,6 +635,15 @@ def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title=
         plt.show()
 
 ######### Data Saving and Reading ####################################################################
+def check_path(func):
+    def wrapper(*args, **kwargs):
+        try: 
+            os.makedirs(args[0])
+        except FileExistsError:
+            pass
+        return func(*args, **kwargs)
+    return wrapper
+
 def saveModelsToTxt(path, fits, float_format='%.5e'):
     """
     Save the tau and U values from a collection of DRT_Fit_Result objects to a txt file.
@@ -660,7 +669,7 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
     DRT_data = pd.DataFrame(DRT_data)
     DRT_data.to_csv(path, sep=' ', float_format=float_format, index=False)
 
-def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
+def saveModelPredictionsToTxt(path, fits, time, float_format='%.5e'):
     """
     Save the y values from a collection of DRT_Fit_Result objects to a txt file.
 
@@ -670,6 +679,8 @@ def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
         File path of save file
     fits : arraylike(DRT_Fit_Result)
         Array like object of fit results 
+    time : numpy.ndarray
+        Time values over which each fit was made
     float_format: str (optional)
         Controls how float values are save to file
 
@@ -677,7 +688,7 @@ def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
     -------
     None
     """
-    model_predictions = {'t' : time}
+    model_predictions = {'t' : time} ###FIX THIS 
     for i in range(len(fits)):
         model_predictions[f'y_model_iter_{i+1}'] = fits[i].y
     model_predictions = pd.DataFrame(model_predictions)
@@ -705,7 +716,8 @@ def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
     model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
 
-def saveToTxt(directory_path, fits, float_format='%.5e'):
+@check_path
+def saveToTxt(directory_path, fits, time, float_format='%.5e'):
     """
     Save tau, U, y, MSE, and R2 values from a collection of fit objects to text files.
 
@@ -715,6 +727,8 @@ def saveToTxt(directory_path, fits, float_format='%.5e'):
         All save files are saved to this directory
     fits : arraylike(DRT_Fit_Result)
         Array like object of fit results 
+    time : numpy.ndarray
+        Time values over which each fit was made
     float_format: str (optional)
         Controls how float values are save to file
 
@@ -729,7 +743,7 @@ def saveToTxt(directory_path, fits, float_format='%.5e'):
     
     # Save data
     saveModelsToTxt(DRTModels_filename, fits, float_format=float_format)
-    saveModelPredictionsToTxt(modelPredictions_filename, fits, float_format=float_format)
+    saveModelPredictionsToTxt(modelPredictions_filename, fits, time, float_format=float_format)
     saveModelErrorsToTxt(outputErrors_filename, fits, float_format=float_format)
 
 def readFromTxt(path):

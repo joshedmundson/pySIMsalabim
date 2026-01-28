@@ -676,8 +676,10 @@ if __name__ == '__main__':
         pass
     except PermissionError:
         print(f"Error: DRT.py lacks the neccessary permissions to create {args.DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
+        sys.exit(1)
     except Exception as error:
         print(f"Error: {error}")
+        sys.exit(1)
     
     # Run checkerboard fit 
     run_code = 0

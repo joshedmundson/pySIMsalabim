@@ -7,6 +7,8 @@ import scipy.optimize as so
 import argparse
 import sys
 import os
+import traceback
+import pickle
 import pandas as pd
 import numpy as np
 import torch
@@ -632,15 +634,163 @@ def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title=
     else:
         plt.show()
 
+######### Data Saving and Reading ####################################################################
+def saveModelsToTxt(path, fits, float_format='%.5e'):
+    """
+    Save the tau and U values from a collection of DRT_Fit_Result objects to a txt file.
+
+    Parameters
+    ----------
+    path : str
+        File path of save file
+    fits : arraylike(DRT_Fit_Result)
+        Array like object of fit results 
+    float_format: str (optional)
+        Controls how float values are save to file
+
+    Returns
+    -------
+    None
+    """
+    tau = fits[0].tau # All iterations in a checkerboard fit will have the same tau
+    offset = fits[0].offset # All iterations in a checkerboard fit will have the same offset
+    DRT_data = {'tau' : tau}
+    for i in range(len(fits)):
+        DRT_data[f'U_iter_{i+1}'] = fits[i].U
+    DRT_data = pd.DataFrame(DRT_data)
+    DRT_data.to_csv(path, sep=' ', float_format=float_format, index=False)
+
+def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
+    """
+    Save the y values from a collection of DRT_Fit_Result objects to a txt file.
+
+    Parameters
+    ----------
+    path : str
+        File path of save file
+    fits : arraylike(DRT_Fit_Result)
+        Array like object of fit results 
+    float_format: str (optional)
+        Controls how float values are save to file
+
+    Returns
+    -------
+    None
+    """
+    model_predictions = {'t' : time}
+    for i in range(len(fits)):
+        model_predictions[f'y_model_iter_{i+1}'] = fits[i].y
+    model_predictions = pd.DataFrame(model_predictions)
+    model_predictions.to_csv(path, sep=' ', float_format=float_format, index=False)
+
+def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
+    """
+    Save the MSE and R2 values from a collection of DRT_Fit_Result objects to a txt file.
+
+    Parameters
+    ----------
+    path : str
+        File path of save file
+    fits : arraylike(DRT_Fit_Result)
+        Array like object of fit results 
+    float_format: str (optional)
+        Controls how float values are save to file
+
+    Returns
+    -------
+    None
+    """
+    MSE = [fit.MSE for fit in fits]
+    R2 = [fit.R2 for fit in fits]
+    model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
+    model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
+
+def saveToTxt(directory_path, fits, float_format='%.5e'):
+    """
+    Save tau, U, y, MSE, and R2 values from a collection of fit objects to text files.
+
+    Parameters
+    ----------
+    directory_path : str
+        All save files are saved to this directory
+    fits : arraylike(DRT_Fit_Result)
+        Array like object of fit results 
+    float_format: str (optional)
+        Controls how float values are save to file
+
+    Returns
+    -------
+    None
+    """
+    # Define file names
+    DRTModels_filename = directory_path + "/DRTModels.txt"
+    modelPredictions_filename = directory_path + "/modelOutputs.txt"
+    outputErrors_filename = directory_path + "/outputErrors.txt"
+    
+    # Save data
+    saveModelsToTxt(DRTModels_filename, fits, float_format=float_format)
+    saveModelPredictionsToTxt(modelPredictions_filename, fits, float_format=float_format)
+    saveModelErrorsToTxt(outputErrors_filename, fits, float_format=float_format)
+
+def readFromTxt(path):
+    """
+    Reads data stored in a space seperated text file
+
+    Parameters
+    ----------
+    path : str
+        Path of file
+
+    Returns
+    -------
+    None
+    """
+    return pd.read_csv(path, sep=r"\s+")
+
+def saveToPickle(path, fits):
+    """
+    Saves an array of DRT_Fit_Results to a .pkl file
+
+    Parameters
+    ----------
+    path : str
+        Path of file
+    fits : arraylike(DRT_Fit_Result)
+        Array like object of fit results 
+
+    Returns
+    -------
+    None
+    """
+    with open(path, 'wb') as file:
+        pickle.dump(fits, file)
+
+def readFromPickle(path):
+    """
+    Loads an array of DRT_Fit_Results from a .pkl file
+
+    Parameters
+    ----------
+    path : str
+        Path of file
+
+    Returns
+    -------
+    fits : arraylike(DRT_Fit_Result)
+        Array of DRT_Fit_Result objects read from the .pkl save file
+    """
+    with open(path, 'rb') as file:
+        fits = pickle.load(file)
+    return fits
+
 ######### Scripting Functionality ####################################################################
-import traceback
 if __name__ == '__main__':
 
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("dataFile", 
                         help="path to data file containing time and function values for fit")
-    parser.add_argument("-DRTDirectory", default='./DRT/', 
+    parser.add_argument("-DRTDirectory", default='DRT', 
                         help="path to directory for DRT save files (default: ./DRT/)")
     parser.add_argument("-timeCol", default= 't', 
                         help="heading of the time column in dataFile (default: 't')")
@@ -648,13 +798,15 @@ if __name__ == '__main__':
                         help="heading of the function column in dataFile (default: 'Jext')")
     parser.add_argument("-iters", type=int, default=50, 
                         help="number of iterations in checkerboard fit (default: 50)")
+    parser.add_argument("-saveFormat", default="txt", choices=["txt", "pkl"],
+                        help="saved data file format (default: txt)")
     args = parser.parse_args()
 
     # Read data 
     try:
         dataFile = pd.read_csv(args.dataFile, sep=r"\s+")
     except FileNotFoundError:
-        print(f"Error: '{parser.dataFile}' not found")
+        print(f"Error: dataFile not found")
         sys.exit(1)
   
     try: 
@@ -666,7 +818,7 @@ if __name__ == '__main__':
     try: 
         y = np.array(dataFile[args.funcCol])
     except KeyError:
-        print(f"Error: column '{args.timeCol}' not found in '{args.dataFile}'")
+        print(f"Error: column '{args.funcCol}' not found in '{args.dataFile}'")
         sys.exit(1)
 
     # Check whether DRTDirectory exists and, if not, create it
@@ -690,26 +842,9 @@ if __name__ == '__main__':
         sys.exit(1)
     
     # Save DRT data to file
-    tau = fits[0].tau # All iterations in a checkerboard fit will have the same tau
-    offset = fits[0].offset # All iterations in a checkerboard fit will have the same offset
-    DRT_data = pd.DataFrame({'tau' : fits[0].tau})
-    for i in range(len(fits)):
-        DRT_data[f'U_iter_{i+1}'] = fits[i].U
-    DRT_filename = args.DRTDirectory + 'DRTModels.txt'
-    DRT_data.to_csv(DRT_filename, sep=' ', float_format='%.5e', index=False)
-
-    # Save Model Predictions to a file
-    model_outputs = pd.DataFrame({'t' : time})
-    for i in range(len(fits)):
-        model_outputs[f'y_model_iter_{i+1}'] = fits[i].y
-    model_outputs_filename = args.DRTDirectory + 'modelOutputs.txt'
-    model_outputs.to_csv(model_outputs_filename, sep=' ', float_format='%.5e', index=False)
-
-    # Save model errors to a file 
-    MSE = [fit.MSE for fit in fits]
-    R2 = [fit.R2 for fit in fits]
-    model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
-    model_errors_filename = args.DRTDirectory + "outputErrors.txt"
-    model_errors.to_csv(model_errors_filename, sep=' ', float_format='%.5e', index=False)
+    if args.saveFormat == "txt":
+        saveToTxt(args.DRTDirectory, fits)
+    elif args.saveFormat == "pkl":
+        saveToPickle(args.DRTDirectory + "/models.pkl", fits)
 
     sys.exit(0)

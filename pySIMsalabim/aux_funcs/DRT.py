@@ -4,6 +4,10 @@
 import matplotlib.pyplot as plt
 # from pySIMsalabim.utils import device_parameters as utils_dev
 import scipy.optimize as so
+import argparse
+import sys
+import os
+import pandas as pd
 import numpy as np
 import torch
 import osqp
@@ -627,3 +631,83 @@ def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title=
         return ax
     else:
         plt.show()
+
+######### Scripting Functionality ####################################################################
+import traceback
+if __name__ == '__main__':
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataFile", 
+                        help="path to data file containing time and function values for fit")
+    parser.add_argument("-DRTDirectory", default='./DRT/', 
+                        help="path to directory for DRT save files (default: ./DRT/)")
+    parser.add_argument("-timeCol", default= 't', 
+                        help="heading of the time column in dataFile (default: 't')")
+    parser.add_argument("-funcCol", default = 'Jext', 
+                        help="heading of the function column in dataFile (default: 'Jext')")
+    parser.add_argument("-iters", type=int, default=50, 
+                        help="number of iterations in checkerboard fit (default: 50)")
+    args = parser.parse_args()
+
+    # Read data 
+    try:
+        dataFile = pd.read_csv(args.dataFile, sep=r"\s+")
+    except FileNotFoundError:
+        print(f"Error: '{parser.dataFile}' not found")
+        sys.exit(1)
+  
+    try: 
+        time = np.array(dataFile[args.timeCol])
+    except KeyError:
+        print(f"Error: column '{args.timeCol}' not found in '{args.dataFile}'")
+        sys.exit(1)
+
+    try: 
+        y = np.array(dataFile[args.funcCol])
+    except KeyError:
+        print(f"Error: column '{args.timeCol}' not found in '{args.dataFile}'")
+        sys.exit(1)
+
+    # Check whether DRTDirectory exists and, if not, create it
+    try: 
+        os.makedirs(args.DRTDirectory)
+    except FileExistsError:
+        pass
+    except PermissionError:
+        print(f"Error: DRT.py lacks the neccessary permissions to create {args.DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
+    except Exception as error:
+        print(f"Error: {error}")
+    
+    # Run checkerboard fit 
+    run_code = 0
+    try:
+        fits = checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=args.iters)
+    except Exception as error:
+        traceback.print_exc()
+        sys.exit(1)
+    
+    # Save DRT data to file
+    tau = fits[0].tau # All iterations in a checkerboard fit will have the same tau
+    offset = fits[0].offset # All iterations in a checkerboard fit will have the same offset
+    DRT_data = pd.DataFrame({'tau' : fits[0].tau})
+    for i in range(len(fits)):
+        DRT_data[f'U_iter_{i+1}'] = fits[i].U
+    DRT_filename = args.DRTDirectory + 'DRTModels.txt'
+    DRT_data.to_csv(DRT_filename, sep=' ', float_format='%.5e', index=False)
+
+    # Save Model Predictions to a file
+    model_outputs = pd.DataFrame({'t' : time})
+    for i in range(len(fits)):
+        model_outputs[f'y_model_iter_{i+1}'] = fits[i].y
+    model_outputs_filename = args.DRTDirectory + 'modelOutputs.txt'
+    model_outputs.to_csv(model_outputs_filename, sep=' ', float_format='%.5e', index=False)
+
+    # Save model errors to a file 
+    MSE = [fit.MSE for fit in fits]
+    R2 = [fit.R2 for fit in fits]
+    model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
+    model_errors_filename = args.DRTDirectory + "outputErrors.txt"
+    model_errors.to_csv(model_errors_filename, sep=' ', float_format='%.5e', index=False)
+
+    sys.exit(0)

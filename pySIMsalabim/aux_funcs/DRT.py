@@ -811,8 +811,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("dataFile", 
                         help="path to data file containing time and function values for fit")
-    parser.add_argument("-DRTDirectory", default='DRT', 
-                        help="path to directory for DRT save files (default: ./DRT/)")
+    parser.add_argument("-DRTDirectory", default='DRT_Saves', 
+                        help="path to directory for DRT save files (default: DRT_Saves)")
     parser.add_argument("-timeCol", default= 't', 
                         help="heading of the time column in dataFile (default: 't')")
     parser.add_argument("-funcCol", default = 'Jext', 

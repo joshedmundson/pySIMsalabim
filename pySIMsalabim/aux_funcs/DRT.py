@@ -600,7 +600,7 @@ def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title
     else:
         plt.show()
 
-def plot_R2(error_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
+def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
              return_ax=False):
     """
     Plots the R^2 error. Useful for checking how R^2 varies with iteration 
@@ -610,6 +610,8 @@ def plot_R2(error_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_titl
     ----------
     fit_array : array_like(DRT_Fit_Result), shape (i,)
         An iterable conatining DRT_Fit_Result objects from which the R^2 values are taken
+    ylim : tuple, (2,) (optional)
+        Set the ylimits of the plot. ylim[0] gives the lower bound, y[1] the upper. Default (0, 1.1)
     xaxis_label : str (optional)
         Label for the x axis of the output plot. 'Iteration' by default.
     yaxis_label : str (optional)
@@ -635,6 +637,7 @@ def plot_R2(error_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_titl
     ax.plot(range(1, len(error_array)+1), R2_values)
     ax.set_xlabel(xaxis_label)
     ax.set_ylabel(yaxis_label)
+    ax.set_ylim(ylim)
     ax.set_title(plot_title)
 
     if return_ax:

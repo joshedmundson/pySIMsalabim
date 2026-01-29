@@ -557,16 +557,17 @@ def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xa
     else: 
         plt.show()
 
-def plot_MSE(fit_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title='MSE per Fit Iteration', 
+def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title='MSE per Fit Iteration', 
              return_ax=False):
     """
-    Plots the MSE for an array of passed DRT_Fit_Objects. Useful for checking how the MSE varies with iteration 
+    Plots the mean square error. Useful for checking how the MSE varies with iteration 
     during checkerboard fit.
     
     Parameters
     ----------
-    fit_array : array_like(DRT_Fit_Result), shape (i,)
-        An iterable conatining DRT_Fit_Result objects from which the MSE values are taken
+    error_array : {array_like(DRT_Fit_Result) of shape (i,), arraylike(float)}
+        An iterable conatining EITHER DRT_Fit_Result objects from which the MSE values are taken 
+        OR float values which are considered to be the MSE values
     xaxis_label : str (optional)
         Label for the x axis of the output plot. 'Iteration' by default.
     yaxis_label : str (optional)
@@ -583,10 +584,13 @@ def plot_MSE(fit_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title='
         Returned axes object if return_ax is True.
     """
     
-    MSE_values = [fit.MSE for fit in fit_array]
+    if isinstance(error_array[0], DRT_Fit_Result):
+        MSE_values = [fit.MSE for fit in error_array]
+    else: 
+        MSE_values = error_array
 
     fig, ax = plt.subplots()
-    ax.plot(range(1, len(fit_array)+1), MSE_values)
+    ax.plot(range(1, len(error_array)+1), MSE_values)
     ax.set_xlabel(xaxis_label)
     ax.set_ylabel(yaxis_label)
     ax.set_title(plot_title)
@@ -596,10 +600,10 @@ def plot_MSE(fit_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title='
     else:
         plt.show()
 
-def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
+def plot_R2(error_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
              return_ax=False):
     """
-    Plots the R^2 error for an array of passed DRT_Fit_Objects. Useful for checking how R^2 varies with iteration 
+    Plots the R^2 error. Useful for checking how R^2 varies with iteration 
     during checkerboard fit.
     
     Parameters
@@ -621,10 +625,14 @@ def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title=
     ax : matplotlib.axes.Axes (optional)
         Returned axes object if return_ax is True.
     """
-    R2_values = [fit.R2 for fit in fit_array]
+    
+    if isinstance(error_array[0], DRT_Fit_Result):
+        R2_values = [fit.R2 for fit in error_array]
+    else:
+        R2_values = error_array
 
     fig, ax = plt.subplots()
-    ax.plot(range(1, len(fit_array)+1), R2_values)
+    ax.plot(range(1, len(error_array)+1), R2_values)
     ax.set_xlabel(xaxis_label)
     ax.set_ylabel(yaxis_label)
     ax.set_title(plot_title)

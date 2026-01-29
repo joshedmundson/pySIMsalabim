@@ -635,15 +635,6 @@ def plot_R2(fit_array, xaxis_label='Iteration', yaxis_label='$R^2$', plot_title=
         plt.show()
 
 ######### Data Saving and Reading ####################################################################
-def check_path(func):
-    def wrapper(*args, **kwargs):
-        try: 
-            os.makedirs(args[0])
-        except FileExistsError:
-            pass
-        return func(*args, **kwargs)
-    return wrapper
-
 def saveModelsToTxt(path, fits, float_format='%.5e'):
     """
     Save the tau and U values from a collection of DRT_Fit_Result objects to a txt file.
@@ -716,7 +707,6 @@ def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
     model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
 
-@check_path
 def saveToTxt(directory_path, fits, time, float_format='%.5e'):
     """
     Save tau, U, y, MSE, and R2 values from a collection of fit objects to text files.
@@ -736,6 +726,12 @@ def saveToTxt(directory_path, fits, time, float_format='%.5e'):
     -------
     None
     """
+    # Check the directory exists and make it if not
+    try: 
+        os.makedirs(directory_path)
+    except FileExistsError:
+        pass
+    
     # Define file names
     DRTModels_filename = directory_path + "/DRTModels.txt"
     modelPredictions_filename = directory_path + "/modelOutputs.txt"
@@ -857,7 +853,7 @@ if __name__ == '__main__':
     
     # Save DRT data to file
     if args.saveFormat == "txt":
-        saveToTxt(args.DRTDirectory, fits)
+        saveToTxt(args.DRTDirectory, fits, time)
     elif args.saveFormat == "pkl":
         saveToPickle(args.DRTDirectory + "/models.pkl", fits)
 

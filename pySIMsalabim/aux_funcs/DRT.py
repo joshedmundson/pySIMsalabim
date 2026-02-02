@@ -15,6 +15,8 @@ import torch
 import osqp
 from scipy.sparse import csc_matrix
 
+DRT_VERSION = "0.1"
+
 ######### References ##############################################################################
 
 # [1] M. Schönleber, D. Klotz, and E. Ivers-Tiffée, ‘A Method for Improving the Robustness of linear 

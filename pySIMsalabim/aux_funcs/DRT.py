@@ -29,7 +29,7 @@ from scipy.sparse import csc_matrix
 ######### Class Definitions #######################################################################
 
 class DRT_Fit_Result:
-    """ A class that bundles together all results from fitting a predict_y curve to data
+    """ A class that bundles together all results from fitting a predict_y_model curve to data
 
     Attributes
     ----------
@@ -37,14 +37,14 @@ class DRT_Fit_Result:
         Fitted coefficients [U_1, U_2, ..., U_m]
     tau : numpy.ndarray, shape (m,)
         Fitted lifetimes [tau_1, tau_2, ..., tau_m]
-    offset : float
-        Offset of the steady state of the fitted signal from 0
+    y_inf : float
+        y_inf of the steady state of the fitted signal from 0
     m : int
-        Number of lifetimes/coefficients used in predict_y, given by the length of U/tau
-    y : {None, numpy.ndarray}
+        Number of lifetimes/coefficients used in predict_y_model, given by the length of U/tau
+    y_model : {None, numpy.ndarray}
         Model given by
-            y = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
-    norm_U : {None, numpy.ndarray with shape (m,)}
+            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
+    U_norm : {None, numpy.ndarray with shape (m,)}
         Fitted coefficients normalised by np.sum(self.U)
     MSE : float 
         Mean square error between the model (self.y) and the fitted signal
@@ -54,29 +54,29 @@ class DRT_Fit_Result:
         
     Methods
     -------
-    predict_y(t)
-        Calculates predict_y(t) using the object's attributes (self.U, self.tau, self.offset)
-        and sets self.predict_y equal to the result 
-    set_norm_U()
-        Sets self.norm_U to U/np.sum(U)
+    predict_y_model(t)
+        Calculates predict_y_model(t) using the object's attributes (self.U, self.tau, self.y_inf)
+        and sets self.predict_y_model equal to the result 
+    set_U_norm()
+        Sets self.U_norm to U/np.sum(U)
     """
-    def __init__(self, U, tau, offset, m, y=None, MSE=None, R2=None):
+    def __init__(self, U, tau, y_inf, m, y=None, MSE=None, R2=None):
         self.U = U
         self.tau = tau 
-        self.offset = offset 
+        self.y_inf = y_inf 
         self.m = m 
-        self.y = None
+        self.y_model = None
         self.MSE = MSE
         self.R2 = R2
-        self.norm_U = None
+        self.U_norm = None
 
-    def predict_y(self, t, backend='numpy', device=torch.device('cpu')):
-        """ Sets self.predict_y = predict_y(t) using the objects attributes
+    def set_y_model(self, t):
+        """ Sets self.predict_y_model = predict_y_model(t) using the objects attributes
 
         Parameters
         ----------
         t : float or list/numpy.ndarray, shape (n,)
-            Time values to calculate the predict_y curve
+            Time values to calculate the predict_y_model curve
         backend : {'numpy', 'torch'} (optional)
             Determines whether matrix operations are done with numpy or pytorch. Default numpy. 
         device : torch.device (optional)
@@ -86,20 +86,20 @@ class DRT_Fit_Result:
         -------
         None
         """
-        self.y = predict_y(t, self.U, self.tau, self.offset)
+        self.y_model = predict_y_model(t, self.U, self.tau, self.y_inf)
 
-    def set_norm_U(self):
+    def set_U_norm(self):
         """
-        Set self.norm_U equal to self.U/np.sum(self.U)
+        Set self.U_norm equal to self.U/np.sum(self.U)
         """
-        self.norm_U = self.U/np.sum(self.U)
+        self.U_norm = self.U/np.sum(self.U)
 
 ######### Function Definitions ####################################################################
 
 # Utility Functions #####################################
-def predict_y(time, U, tau, offset=0):
+def predict_y_model(time, U, tau, y_inf=0):
     """Calculate the function 
-        predict_y(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + offset
+        predict_y_model(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + y_inf
     
     Parameters
     ----------
@@ -110,18 +110,18 @@ def predict_y(time, U, tau, offset=0):
         exp(-t/tau[i])
     tau : numpy.ndarray with shape (m,)
         The relaxation times used in the model as above.
-    offset : float (optional)
-        The offset of the steady state signal from 0
+    y_inf : float (optional)
+        The amplitude of the steady state signal in y_data i.e. y(infinity)
     
     Returns 
     -------
-    predicted_y : numpy.ndarray with shape (n,)
-        predict_y at all time values in t
+    y_model : numpy.ndarray with shape (n,)
+        predict y_model at all time values in t
     """
-    # Calculate predict_y(t) for all values in t
-    predicted_y = (U @ np.exp(-np.outer(1/tau, time))) + offset
+    # Calculate predict_y_model(t) for all values in t
+    y_model = (U @ np.exp(-np.outer(1/tau, time))) + y_inf
 
-    return predicted_y
+    return y_model
 
 def calculate_tau(time):
     """
@@ -154,13 +154,13 @@ def calculate_tau(time):
 
     return tau_values
 
-def R2_error(y, y_model):
+def R2_error(y_data, y_model):
     """
     Calculates the R^2 error between data (y) and model (y_model)
 
     Parameters
     ----------
-    y : arraylike (n,)
+    y_data : arraylike (n,)
         Data used in fit
     y_model : arraylike (n,)
         Model predicted values
@@ -169,17 +169,17 @@ def R2_error(y, y_model):
     -------
     R^2 : float 
     """
-    SSres = np.mean((y - y_model)**2)
-    SStot = np.mean((y - np.mean(y))**2)
+    SSres = np.mean((y_data - y_model)**2)
+    SStot = np.mean((y_data - np.mean(y_data))**2)
     return 1 - SSres/SStot
 
-def mean_square_error(y, y_model):
+def mean_square_error(y_data, y_model):
     """
     Calculates the mean square error (MSE) between data (y) and model (y_model)
 
     Parameters
     ----------
-    y : arraylike (n,)
+    y_data : arraylike (n,)
         Data used in fit
     y_model : arraylike (n,)
         Model predicted values
@@ -188,15 +188,15 @@ def mean_square_error(y, y_model):
     -------
     MSE : float
     """
-    return np.mean((y-y_model)**2)
+    return np.mean((y_data-y_model)**2)
 
 
 # Fitting Functions #####################################
-def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
+def linear_fit(time, y_data, tau='Auto', y_inf='Auto', bounds=None, scaling=True):
     """
     Performs a linear fit of 
-        y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
-    to the data (y)
+        y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
+    to the data (y_data)
 
     Converts the linear fit problem to a convex quadratic program and minimises using 
     the Operator Splitting Quadratic Program (OSQP) package solver [2]. Using a QP solver 
@@ -206,20 +206,20 @@ def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
     ----------
     time : numpy.ndarray, shape (n,)
         Time values over which the simulated experiment took place
-    y : numpy.ndarray, shape (n,)
+    y_data : numpy.ndarray, shape (n,)
         Data for model fitting
-    tau: {'Auto', tuple(tau_min, tau_max, m), array_like of shape (m,)} (optional)
+    tau: {'Auto', (tau_min, tau_max, m), array_like of shape (m,)} (optional)
         The tau values used in the model 
-            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
+            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
         'Auto' will use the 'calculate_tau' method to determine lifetimes for fitting. 
         Passing a tuple in the form (tau_min, tau_max, m) will generate a logarithmic array of m values between 
         tau_min and tau_max. 
         Any passed array_like that isn't a tuple of length 3 will be used for all tau values. 
         Default 'Auto'.
-    offset : REMOVE THIS
-    bounds : {None, tuple(lower, upper)} (optional)
+    y_inf : REMOVE THIS
+    bounds : {None, (lower, upper)} (optional)
         Sets the bounds for the fitted coeffs. U. Use np.inf for unbounded limit. Default None.
-    scaling : bool (optionl)
+    scaling : bool (optional)
         Determines whether minmax scaling is applied to the data before fitting 
         (the data is scaled back post fit). Would recomend leaving at default value. 
         Default True.
@@ -229,8 +229,8 @@ def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
     fit : DRT_Fit_Result
         Fit object containing fit data.
     """
-    # Record offset from y=0
-    offset = y[-1] if offset == 'Auto' else offset
+    # Record y_inf from y=0
+    y_inf = y_data[-1] if y_inf == 'Auto' else y_inf
 
     # Determine tau 
     if isinstance(tau, str): # Check if tau is set to 'Auto' by verifying it's a string
@@ -240,24 +240,23 @@ def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
     else:
         tau = tau
 
-    # Step 0: Scale the signal and remove scaled offset
+    # Step 0: Scale the signal and remove scaled y_inf
     scale_factor = 1
     if scaling:
-        y_max = y.max()
-        y_min = y.min()
-        scale_factor = y_max-y_min
-        y = (y - y_min)/scale_factor
-        y = y - y[-1]
+        y_data_max = y_data.max()
+        y_data_min = y_data.min()
+        scale_factor = y_data_max-y_data_min
+        y_data = (y_data - y_data_min)/scale_factor
+        y_data = y_data - y_data[-1]
     
     # Step 1: Convert the DRT function form into the form Y = R@U
     m = len(tau)
-    n = len(time)
     R = np.exp(-np.outer(1/tau, time)).T 
     
     # Step 2: Convert the least squares problem into a quadratic program
     P = 2*R.T@R 
     P = csc_matrix((1/2)*(P.T + P))
-    q = -2*R.T@y
+    q = -2*R.T@y_data
     
     # Step 3: Set the constraints matrices
     A = csc_matrix(np.identity(m))
@@ -272,37 +271,37 @@ def linear_fit(time, y, tau='Auto', offset='Auto', bounds=None, scaling=True):
     
     # Step 5: Rescale results
     U = scale_factor*osqp_result.x
-    y_model = R@U + offset
-    y = y*scale_factor + offset
+    y_model = R@U + y_inf
+    y_data = y_data*scale_factor + y_inf
 
     # Step 6: Calculate errors
-    MSE = mean_square_error(y, y_model)
-    R2 = R2_error(y, y_model)
+    MSE = mean_square_error(y_data, y_model)
+    R2 = R2_error(y_data, y_model)
 
     # Step 7: Package results in DRT_Fit_result
-    fit = DRT_Fit_Result(U, tau, m=m, offset=offset, MSE=MSE, R2=R2)
-    fit.y = y_model
-    fit.set_norm_U()
+    fit = DRT_Fit_Result(U, tau, m=m, y_inf=y_inf, MSE=MSE, R2=R2)
+    fit.y_model = y_model
+    fit.set_U_norm()
     
     return fit
 
-def checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=50, fit_scaling=True):
+def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=50, fit_scaling=True):
     """
     Performs a 'checkerboard' DRT fit by iteratively fitting capacitive and inductive effects in supplied data (y)
     
     time : numpy.ndarray, shape (n,)
         Time values over which the simulated experiment took place
-    y : numpy.ndarray, shape (n,)
+    y_data : numpy.ndarray, shape (n,)
         Data for model fitting
     tau: {'Auto', tuple(tau_min, tau_max, m), array_like of shape (m,)} (optional)
         The tau values used in the model 
-            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
+            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
         'Auto' will use the 'calculate_tau' method to determine lifetimes for fitting. 
         Passing a tuple in the form (tau_min, tau_max, m) will generate a logarithmic array of m values between 
         tau_min and tau_max. 
         Any passed array_like that isn't a tuple of length 3 will be used for all tau values. 
         Default 'Auto'.
-    offset:  {'Auto', float} (optional)
+    y_inf:  {'Auto', float} (optional)
         REMOVE THIS
     checkerboard_iters : int (optional)
         The number of iterations to perform using the checkerboard fitting method
@@ -324,68 +323,68 @@ def checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=50, 
     else:
         tau = tau
     
-    # Step 1: Prep the signal for fitting by removing offset and scaling
-    offset = y[-1] if offset == 'Auto' else offset
-    y_max = y.max()
-    y_min = y.min()
-    scale_factor = y_max-y_min
-    y_scaled = (y - y_min)/scale_factor
-    y_scaled = y_scaled - y_scaled[-1]
+    # Step 1: Prep the signal for fitting by removing y_inf and scaling
+    y_inf = y_data[-1] if y_inf == 'Auto' else y_inf
+    y_data_max = y_data.max()
+    y_data_min = y_data.min()
+    scale_factor = y_data_max-y_data_min
+    y_data_scaled = (y_data - y_data_min)/scale_factor
+    y_data_scaled = y_data_scaled - y_data_scaled[-1]
 
     # Step 2: Set initial values
     U_values = np.zeros(len(tau))
     
-    y_cap = y_scaled
+    y_model_cap = y_data_scaled
 
     cap_U_values = np.zeros(len(tau))
     ind_U_values = np.zeros(len(tau))
 
-    cap_offset = 0
-    ind_offset = 0
+    cap_y_inf = 0
+    ind_y_inf = 0
 
     fits = []
     
-    # NOTE: we probably want to set the offset and scale factor guesses ourselves
+    # NOTE: we probably want to set the y_inf and scale factor guesses ourselves
     for i in range(checkerboard_iters):
         
         # Set scale params for capacitive effects and fit
-        cap_fit = linear_fit(time, y_cap, tau=tau, offset=cap_offset, scaling=fit_scaling, bounds=(0, np.inf))
+        cap_fit = linear_fit(time, y_model_cap, tau=tau, y_inf=cap_y_inf, scaling=fit_scaling, bounds=(0, np.inf))
         
         # Add the fit to U_values
         cap_U_values = cap_fit.U
         
         # Remove the capacitive effects from y
-        y_ind = y_scaled - cap_fit.y
-        ind_offset = y_ind[-1]
+        y_model_ind = y_data_scaled - cap_fit.y_model
+        ind_y_inf = y_model_ind[-1]
         
         # Set the inductive scale params and fit by doing a capacitive fit on an inverted function
-        ind_fit = linear_fit(time, -y_ind, tau=tau, offset=ind_offset, scaling=fit_scaling, bounds=(0, np.inf))
+        ind_fit = linear_fit(time, -y_model_ind, tau=tau, y_inf=ind_y_inf, scaling=fit_scaling, bounds=(0, np.inf))
         
         # Add the fit to U_values 
         ind_U_values = -ind_fit.U
 
         # Remove the inductive effects from the curve for the next iteration
-        y_cap = y_scaled + ind_fit.y
-        cap_offset = y_cap[-1]
+        y_model_cap = y_data_scaled + ind_fit.y_model
+        cap_y_inf = y_model_cap[-1]
         
         # Once the fit is done, return a fit object with the results and a dummy cost of 0
         U_values = cap_U_values + ind_U_values
 
         # Rescale and package results
         U_values = scale_factor*U_values
-        y_model = predict_y(time, U_values, tau, offset=offset)
-        MSE = mean_square_error(y, y_model)
-        R2 = R2_error(y, y_model)
+        y_model = predict_y_model(time, U_values, tau, y_inf=y_inf)
+        MSE = mean_square_error(y_data, y_model)
+        R2 = R2_error(y_data, y_model)
 
-        fit = DRT_Fit_Result(U_values, tau, offset, len(tau), MSE=MSE, R2=R2)
-        fit.y = y_model
-        fit.set_norm_U()
+        fit = DRT_Fit_Result(U_values, tau, y_inf, len(tau), MSE=MSE, R2=R2)
+        fit.y_model = y_model
+        fit.set_U_norm()
         fits.append(fit)
         
     return fits
 
 ######### Plotting Functions #######################################################################
-def plot_y(time, y_model=None, y=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
+def plot_y(time, y_model=None, y_data=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
            y_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
     """
     Plot the fitted model agains the data
@@ -396,7 +395,7 @@ def plot_y(time, y_model=None, y=None, xaxis_label='Time [s]', yaxis_label='y(t)
         The time values over which the simulated experiment took place
     y_model : {None, numpy.ndarray shape (n,)} (optional)
         The model predicted curve. Either y_model or y must not be None. y_model is None by default.
-    y : {None, numpy.ndarray shape (n,)} (optional)
+    y_data : {None, numpy.ndarray shape (n,)} (optional)
         The data the model was fitted to. Either y_model or y must not be None. y is None by default.
     xaxis_label : str (optional)
         Label for the x axis of the output plot. 'Time [s]' by default.
@@ -420,11 +419,11 @@ def plot_y(time, y_model=None, y=None, xaxis_label='Time [s]', yaxis_label='y(t)
     
     # Set up the plot
     fig, ax = plt.subplots()
-    if y_model is None and y is None:
+    if y_model is None and y_data is None:
         raise ValueError("At least one of 'y_model' and 'y' must not be 'None'")
     
-    if y is not None:
-        ax.plot(time, y, label=y_plot_label)
+    if y_data is not None:
+        ax.plot(time, y_data, label=y_plot_label)
 
     if y_model is not None:
         ax.plot(time, y_model, label=y_model_plot_label)
@@ -453,7 +452,7 @@ def plot_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xaxis_label='
         The tau values used in the model
     U_model : numpy.ndarray shape (m,)
         The coeffs from the DRT fit, given by U in 
-            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
+            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
     tau_analytic : {None, numpy.ndarray shape (l,)} (optional)
         Array of tau values use to generate the analytic curve, if known. This is mostly for 
         comparision if fitting to a known DRT for testing purposes. Default None.
@@ -508,7 +507,7 @@ def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xa
         The tau values used in the model
     U_model : numpy.ndarray shape (m,)
         The coeffs from the DRT fit, given by U in 
-            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + offset
+            y_model = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2)... + U_m*exp(-t/tau_m) + y_inf
     tau_analytic : {None, numpy.ndarray shape (l,)} (optional)
         Array of tau values use to generate the analytic curve, if known. This is mostly for 
         comparision if fitting to a known DRT for testing purposes. Default None.
@@ -664,7 +663,7 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
     None
     """
     tau = fits[0].tau # All iterations in a checkerboard fit will have the same tau
-    offset = fits[0].offset # All iterations in a checkerboard fit will have the same offset
+    y_inf = fits[0].y_inf # All iterations in a checkerboard fit will have the same y_inf
     DRT_data = {'tau' : tau}
     for i in range(len(fits)):
         DRT_data[f'U_iter_{i+1}'] = fits[i].U
@@ -673,7 +672,7 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
 
 def saveModelPredictionsToTxt(path, fits, time, float_format='%.5e'):
     """
-    Save the y values from a collection of DRT_Fit_Result objects to a txt file.
+    Save the y_model values from a collection of DRT_Fit_Result objects to a txt file.
 
     Parameters
     ----------
@@ -692,7 +691,7 @@ def saveModelPredictionsToTxt(path, fits, time, float_format='%.5e'):
     """
     model_predictions = {'t' : time} ###FIX THIS 
     for i in range(len(fits)):
-        model_predictions[f'y_model_iter_{i+1}'] = fits[i].y
+        model_predictions[f'y_model_iter_{i+1}'] = fits[i].y_model
     model_predictions = pd.DataFrame(model_predictions)
     model_predictions.to_csv(path, sep=' ', float_format=float_format, index=False)
 
@@ -837,7 +836,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try: 
-        y = np.array(dataFile[args.funcCol])
+        y_data = np.array(dataFile[args.funcCol])
     except KeyError:
         print(f"Error: column '{args.funcCol}' not found in '{args.dataFile}'")
         sys.exit(1)
@@ -857,7 +856,7 @@ if __name__ == '__main__':
     # Run checkerboard fit 
     run_code = 0
     try:
-        fits = checkerboard_fit(time, y, tau='Auto', offset='Auto', checkerboard_iters=args.iters)
+        fits = checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=args.iters)
     except Exception as error:
         traceback.print_exc()
         sys.exit(1)

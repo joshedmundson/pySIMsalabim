@@ -14,6 +14,12 @@ import numpy as np
 import torch
 import osqp
 from scipy.sparse import csc_matrix
+try:
+    import pySIMsalabim as sim
+except ImportError: # add parent directory to sys.path if pySIMsalabim is not installed
+    sys.path.append('../../../..')
+    import pySIMsalabim as sim
+from pySIMsalabim.plots import plot_functions
 
 DRT_VERSION = "0.1"
 
@@ -387,7 +393,7 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
 
 ######### Plotting Functions #######################################################################
 def plot_y(time, y_model=None, y_data=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
-           y_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
+           y_data_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
     """
     Plot the fitted model agains the data
     
@@ -418,28 +424,16 @@ def plot_y(time, y_model=None, y_data=None, xaxis_label='Time [s]', yaxis_label=
     ax : matplotlib.axes.Axes (optional)
         Returned axes object if return_ax is True.
     """
+    ax = plot_functions.plot_2x_2y(
+        time, y_model, xaxis_label, yaxis_label, plot_title, 
+        y1_plot_label=y_model_plot_label, y2=y_data, 
+        y2_plot_label=y_data_plot_label,xscale="log", 
+        order=("y2","y1"), legend=True
+    )
     
-    # Set up the plot
-    fig, ax = plt.subplots()
-    if y_model is None and y_data is None:
-        raise ValueError("At least one of 'y_model' and 'y' must not be 'None'")
-    
-    if y_data is not None:
-        ax.plot(time, y_data, label=y_plot_label)
-
-    if y_model is not None:
-        ax.plot(time, y_model, label=y_model_plot_label)
-
-    ax.set_xscale('log')
-    ax.set_xlabel(xaxis_label)
-    ax.set_ylabel(yaxis_label)
-    ax.set_title(plot_title)
-    ax.legend()
-    
-    # Return axis if called for, otherwise show the figure
     if return_ax:
         return ax 
-    else: 
+    else:
         plt.show()
 
 
@@ -480,16 +474,10 @@ def plot_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xaxis_label='
     ax : matplotlib.axes.Axes (optional)
         Returned axes object if return_ax is True.
     """
-    # Set up the plot
-    fig, ax = plt.subplots()
-    if tau_analytic is not None and U_analytic is not None:
-        ax.plot(tau_analytic, U_analytic, label=U_label)
-    ax.plot(tau_model, U_model, label=U_model_label)
-    ax.set_xscale('log')
-    ax.set_xlabel(xaxis_label)
-    ax.set_ylabel(yaxis_label)
-    ax.set_title(plot_title)
-    ax.legend()
+    ax = plot_functions.plot_2x_2y(
+        tau_model, U_model, xaxis_label, yaxis_label, plot_title, y1_plot_label=U_model_label,
+        x2=tau_analytic, y2=U_analytic, y2_plot_label=U_label, xscale='log', order=("y2", "y1"), legend=True
+    )
 
     # Return axis if called for, otherwise show the figure
     if return_ax:

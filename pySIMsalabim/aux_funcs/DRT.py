@@ -2,6 +2,7 @@
 ######### Package Imports #########################################################################
 
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 # from pySIMsalabim.utils import device_parameters as utils_dev
 import scipy.optimize as so
 import argparse
@@ -21,7 +22,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
     import pySIMsalabim as sim
 from pySIMsalabim.plots import plot_functions
 
-DRT_VERSION = "0.2"
+DRT_VERSION = "0.3"
 
 ######### References ##############################################################################
 
@@ -101,6 +102,148 @@ class DRT_Fit_Result:
         Set self.U_norm equal to self.U/np.sum(self.U)
         """
         self.U_norm = self.U/np.sum(self.U)
+
+    def plot_U(self, normalised=False, tau_analytic=None, U_analytic=None, xaxis_label='$\\tau$ [s]', 
+           yaxis_label='Auto', U_model_label='Model', U_label='Analytic', plot_title='DRT', return_ax=False):
+        """
+        Plot the fitted DRT against an optional analytic DRT
+        
+        Parameters
+        ----------
+        normalised : bool (optional)
+            Determines whether self.U (False) or self.U_norm (Ture) is plotted. Default (False)
+        tau_analytic : {None, numpy.ndarray shape (l,)} (optional)
+            Array of tau values use to generate the analytic curve, if known. This is mostly for 
+            comparision if fitting to a known DRT for testing purposes. Default None.
+        U_analytic : {None, numpy.ndarray shape (l,)} (optional)
+            Array of U values used in the analytic curve, if known. This is mostly for 
+            comparision if fitting to a known DRT for testing purposes. Default None.
+        xaxis_label : str (optional)
+            Label for the x axis of the output plot. '$\\tau$ [s]' by default.
+        yaxis_label : str (optional)
+            Label for the y axis of the output plot. 'U' by default.
+        U_model_label : str (optional)
+            Label for the curve U_model in the output plot legend. 'Model' by default.
+        U_label : str (optional)
+            Label for the U_analytic curve in the output plot legend. 'Analytic' by default.
+        plot_title : str (optional)
+            Title of the output plot. 'DRT' by default.
+        return_ax : bool (optional)
+            Determines whether the matplotlib.axes.Axes object is returned (True) or plotted (False). 
+            Default False.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes (optional)
+            Returned axes object if return_ax is True.
+        """
+        
+        U = self.U_norm if normalised else self.U
+
+        if yaxis_label == 'Auto':
+            if normalised:
+                yaxis_label = '$U_{\\text{norm}}$'
+            else: 
+                yaxis_label = '$U$'
+        else: 
+            yaxis_label = yaxis_label
+
+        ax = plot_U(self.tau, U, tau_analytic=tau_analytic, U_analytic=U_analytic, xaxis_label=xaxis_label, 
+                yaxis_label=yaxis_label, U_model_label=U_model_label, U_label=U_label, 
+                plot_title=plot_title, return_ax=return_ax)
+        
+        if isinstance(ax, Axes):
+            return ax
+        
+    def plot_cumulative_U(self, normalised=False, tau_analytic=None, U_analytic=None, xaxis_label='$\\tau$ [s]', 
+                      yaxis_label='Auto', U_model_label='Model', U_label='Analytic', 
+                      plot_title='Cumulative DRT', return_ax=False):
+        """
+        Plot the cumulative sum of self.U or self.U_norm, optionally against a known analytical form.
+        
+        Parameters
+        ----------
+        normalised : bool (optional)
+            Determines whether self.U (False) or self.U_norm (Ture) is plotted. Default (False)
+        tau_analytic : {None, numpy.ndarray shape (l,)} (optional)
+            Array of tau values use to generate the analytic curve, if known. This is mostly for 
+            comparision if fitting to a known DRT for testing purposes. Default None.
+        U_analytic : {None, numpy.ndarray shape (l,)} (optional)
+            Array of U values used in the analytic curve, if known. This is mostly for 
+            comparision if fitting to a known DRT for testing purposes. Default None.
+        xaxis_label : str (optional)
+            Label for the x axis of the output plot. '$\\tau$ [s]' by default.
+        yaxis_label : str (optional)
+            Label for the y axis of the output plot. 'Cumulative U' by default.
+        U_model_label : str (optional)
+            Label for the curve U_model in the output plot legend. 'Model' by default.
+        U_label : str (optional)
+            Label for the U_analytic curve in the output plot legend. 'Analytic' by default.
+        plot_title : str (optional)
+            Title of the output plot. 'Cumulative DRT' by default.
+        return_ax : bool (optional)
+            Determines whether the matplotlib.axes.Axes object is returned (True) or plotted (False). 
+            Default False.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes (optional)
+            Returned axes object if return_ax is True.
+        """
+
+        U = self.U_norm if normalised else self.U 
+
+        if yaxis_label == 'Auto':
+            if normalised:
+                yaxis_label = '$\\text{Cumulative} \\,\\, U_{\\text{norm}}$'
+            else: 
+                yaxis_label = '$\\text{Cumulative} \\,\\, U$'
+        else: 
+            yaxis_label = yaxis_label
+
+        ax = plot_cumulative_U(self.tau, U, tau_analytic=tau_analytic, U_analytic=U_analytic, xaxis_label=xaxis_label, 
+                          yaxis_label=yaxis_label, U_model_label=U_model_label, U_label=U_label, 
+                          plot_title=plot_title, return_ax=return_ax)
+        
+        if isinstance(ax, Axes):
+            return ax
+    
+    def plot_y_model(self, time, y_data=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
+           y_data_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
+        """
+        Plot the fitted model agains the data
+        
+        Parameters
+        ----------
+        time : numpy.ndarray, shape (n,)
+            The time values over which the simulated experiment took place
+        y_data : {None, numpy.ndarray shape (n,)} (optional)
+            The data the model was fitted to. Either y_model or y must not be None. y is None by default.
+        xaxis_label : str (optional)
+            Label for the x axis of the output plot. 'Time [s]' by default.
+        yaxis_label : str (optional)
+            Label for the y axis of the output plot. 'y(t)' by default.
+        y_data_plot_label : str (optional)
+            Label for the curve y in the output plot legend. 'Data' by default.
+        y_model_plot_label : str (optional)
+            Label for the y_model curve in the output plot legend. 'Model' by default.
+        plot_title : str (optional)
+            Title of the output plot. 'DRT Fit' by default.
+        return_ax : bool (optional)
+            Determines whether the matplotlib.axes.Axes object is returned (True) or plotted (False). 
+            Default False.
+
+        Returns
+        -------
+        ax : matplotlib.axes.Axes (optional)
+            Returned axes object if return_ax is True.
+        """
+        ax = plot_y(time, self.y_model, y_data, xaxis_label, yaxis_label, y_data_plot_label, 
+               y_model_plot_label, plot_title, return_ax)
+        
+        if isinstance(ax, Axes):
+            return ax   
+
 
 ######### Function Definitions ####################################################################
 
@@ -528,6 +671,8 @@ def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xa
     cumulative_U_model = [np.sum(U_model[:i]) for i in range(len(U_model))]
     if tau_analytic is not None and U_analytic is not None:
         cumulative_U_analytic = [np.sum(U_analytic[:i]) for i in range(len(U_analytic))]
+    else: 
+        cumulative_U_analytic = None
     
     ax = plot_functions.plot_2x_2y(
         tau_model, cumulative_U_model, xaxis_label, yaxis_label, plot_title, U_model_label, 

@@ -22,7 +22,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
     import pySIMsalabim as sim
 from pySIMsalabim.plots import plot_functions
 
-DRT_VERSION = "0.3"
+DRT_VERSION = "0.4"
 
 ######### References ##############################################################################
 
@@ -69,11 +69,12 @@ class DRT_Fit_Result:
     set_U_norm()
         Sets self.U_norm to U/np.sum(U)
     """
-    def __init__(self, U, tau, y_inf, m, y=None, MSE=None, R2=None):
+    def __init__(self, time, tau, U, y_inf, y=None, MSE=None, R2=None):
+        self.time = time
         self.U = U
         self.tau = tau 
         self.y_inf = y_inf 
-        self.m = m 
+        self.m = len(self.tau)
         self.y_model = None
         self.MSE = MSE
         self.R2 = R2
@@ -430,7 +431,7 @@ def linear_fit(time, y_data, tau='Auto', y_inf='Auto', bounds=None, scaling=True
     R2 = R2_error(y_data, y_model)
 
     # Step 7: Package results in DRT_Fit_result
-    fit = DRT_Fit_Result(U, tau, m=m, y_inf=y_inf, MSE=MSE, R2=R2)
+    fit = DRT_Fit_Result(time, tau, U, y_inf, MSE=MSE, R2=R2)
     fit.y_model = y_model
     fit.set_U_norm()
     
@@ -527,7 +528,7 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
         MSE = mean_square_error(y_data, y_model)
         R2 = R2_error(y_data, y_model)
 
-        fit = DRT_Fit_Result(U_values, tau, y_inf, len(tau), MSE=MSE, R2=R2)
+        fit = DRT_Fit_Result(time, tau, U_values, y_inf, MSE=MSE, R2=R2)
         fit.y_model = y_model
         fit.set_U_norm()
         fits.append(fit)
@@ -795,7 +796,7 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
     DRT_data = pd.DataFrame(DRT_data)
     DRT_data.to_csv(path, sep=' ', float_format=float_format, index=False)
 
-def saveModelPredictionsToTxt(path, fits, time, float_format='%.5e'):
+def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
     """
     Save the y_model values from a collection of DRT_Fit_Result objects to a txt file.
 
@@ -814,7 +815,7 @@ def saveModelPredictionsToTxt(path, fits, time, float_format='%.5e'):
     -------
     None
     """
-    model_predictions = {'t' : time} ###FIX THIS 
+    model_predictions = {'t' : fits[0].time} ###FIX THIS 
     for i in range(len(fits)):
         model_predictions[f'y_model_iter_{i+1}'] = fits[i].y_model
     model_predictions = pd.DataFrame(model_predictions)
@@ -842,7 +843,7 @@ def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
     model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
 
-def saveToTxt(directory_path, fits, time, float_format='%.5e'):
+def saveToTxt(directory_path, fits, float_format='%.5e'):
     """
     Save tau, U, y, MSE, and R2 values from a collection of fit objects to text files.
 
@@ -874,7 +875,7 @@ def saveToTxt(directory_path, fits, time, float_format='%.5e'):
     
     # Save data
     saveModelsToTxt(DRTModels_filename, fits, float_format=float_format)
-    saveModelPredictionsToTxt(modelPredictions_filename, fits, time, float_format=float_format)
+    saveModelPredictionsToTxt(modelPredictions_filename, fits, float_format=float_format)
     saveModelErrorsToTxt(outputErrors_filename, fits, float_format=float_format)
 
 def readFromTxt(path):

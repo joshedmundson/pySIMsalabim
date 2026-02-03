@@ -18,11 +18,13 @@ from scipy.sparse import csc_matrix
 try:
     import pySIMsalabim as sim
 except ImportError: # add parent directory to sys.path if pySIMsalabim is not installed
-    sys.path.append('../../../..')
+    sys.path.append('../..')
     import pySIMsalabim as sim
 from pySIMsalabim.plots import plot_functions
 
+
 DRT_VERSION = "0.4"
+
 
 ######### References ##############################################################################
 
@@ -36,6 +38,7 @@ DRT_VERSION = "0.4"
 
 
 ######### Class Definitions #######################################################################
+
 
 class DRT_Fit_Result:
     """ A class that bundles together all results from fitting a predict_y_model curve to data
@@ -80,6 +83,7 @@ class DRT_Fit_Result:
         self.R2 = R2
         self.U_norm = None
 
+
     def set_y_model(self, t):
         """ Sets self.predict_y_model = predict_y_model(t) using the objects attributes
 
@@ -98,11 +102,13 @@ class DRT_Fit_Result:
         """
         self.y_model = predict_y_model(t, self.U, self.tau, self.y_inf)
 
+
     def set_U_norm(self):
         """
         Set self.U_norm equal to self.U/np.sum(self.U)
         """
         self.U_norm = self.U/np.sum(self.U)
+
 
     def plot_U(self, normalised=False, tau_analytic=None, U_analytic=None, xaxis_label='$\\tau$ [s]', 
            yaxis_label='Auto', U_model_label='Model', U_label='Analytic', plot_title='DRT', return_ax=False):
@@ -156,6 +162,7 @@ class DRT_Fit_Result:
         if isinstance(ax, Axes):
             return ax
         
+
     def plot_cumulative_U(self, normalised=False, tau_analytic=None, U_analytic=None, xaxis_label='$\\tau$ [s]', 
                       yaxis_label='Auto', U_model_label='Model', U_label='Analytic', 
                       plot_title='Cumulative DRT', return_ax=False):
@@ -209,6 +216,7 @@ class DRT_Fit_Result:
         if isinstance(ax, Axes):
             return ax
     
+
     def plot_y_model(self, time, y_data=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
            y_data_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
         """
@@ -246,9 +254,16 @@ class DRT_Fit_Result:
             return ax   
 
 
+class FitError(Exception):
+    """Custom fit error"""
+    pass
+
 ######### Function Definitions ####################################################################
 
+
 # Utility Functions #####################################
+
+
 def predict_y_model(time, U, tau, y_inf=0):
     """Calculate the function 
         predict_y_model(t) = U_1*exp(-t/tau_1) + U_2*exp(-t/tau_2) + ... + U_m*exp(-t/tau_m) + y_inf
@@ -274,6 +289,7 @@ def predict_y_model(time, U, tau, y_inf=0):
     y_model = (U @ np.exp(-np.outer(1/tau, time))) + y_inf
 
     return y_model
+
 
 def calculate_tau(time):
     """
@@ -306,6 +322,7 @@ def calculate_tau(time):
 
     return tau_values
 
+
 def R2_error(y_data, y_model):
     """
     Calculates the R^2 error between data (y) and model (y_model)
@@ -324,6 +341,7 @@ def R2_error(y_data, y_model):
     SSres = np.mean((y_data - y_model)**2)
     SStot = np.mean((y_data - np.mean(y_data))**2)
     return 1 - SSres/SStot
+
 
 def mean_square_error(y_data, y_model):
     """
@@ -344,6 +362,8 @@ def mean_square_error(y_data, y_model):
 
 
 # Fitting Functions #####################################
+
+
 def linear_fit(time, y_data, tau='Auto', y_inf='Auto', bounds=None, scaling=True):
     """
     Performs a linear fit of 
@@ -437,6 +457,7 @@ def linear_fit(time, y_data, tau='Auto', y_inf='Auto', bounds=None, scaling=True
     
     return fit
 
+
 def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=50, fit_scaling=True):
     """
     Performs a 'checkerboard' DRT fit by iteratively fitting capacitive and inductive effects in supplied data (y)
@@ -454,7 +475,7 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
         Any passed array_like that isn't a tuple of length 3 will be used for all tau values. 
         Default 'Auto'.
     y_inf:  {'Auto', float} (optional)
-        REMOVE THIS
+        Amplitude of steady state signal, assumed to be at y(infinity) when set to 'Auto'. (Default 'Auto')
     checkerboard_iters : int (optional)
         The number of iterations to perform using the checkerboard fitting method
     fit_scaling : bool
@@ -474,6 +495,16 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
         tau = np.geomspace(tau[0], tau[1], tau[3])
     else:
         tau = tau
+
+    # Validate input data 
+    if len(time) != len(y_data):
+        raise FitError("Invalid input: input time and input data (y_data) have mismatch lengths")
+    
+    if (isinstance(tau, str) and tau != 'Auto') or (isinstance(tau, tuple) and len(tau) != 3):
+        raise FitError("Invalid input: 'tau' must be either 'Auto', a tuple of length 3, or an array-like of length n")
+    
+    if y_inf != 'Auto' and not isinstance(tau, float):
+        raise FitError("Invalid input: 'y_inf' must be either 'Auto' or a float")
     
     # Step 1: Prep the signal for fitting by removing y_inf and scaling
     y_inf = y_data[-1] if y_inf == 'Auto' else y_inf
@@ -535,7 +566,10 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
         
     return fits
 
+
 ######### Plotting Functions #######################################################################
+
+
 def plot_y(time, y_model=None, y_data=None, xaxis_label='Time [s]', yaxis_label='y(t)', 
            y_data_plot_label='Data', y_model_plot_label='Model', plot_title='DRT Fit', return_ax=False):
     """
@@ -628,6 +662,7 @@ def plot_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xaxis_label='
         return ax 
     else: 
         plt.show()
+
 
 def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xaxis_label='$\\tau$ [s]', 
                       yaxis_label='Cumulative U', U_model_label='Model', U_label='Analytic', 
@@ -729,6 +764,7 @@ def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title
     else:
         plt.show()
 
+
 def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
              return_ax=False):
     """
@@ -770,7 +806,10 @@ def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R
     else:
         plt.show()
 
+
 ######### Data Saving and Reading ####################################################################
+
+
 def saveModelsToTxt(path, fits, float_format='%.5e'):
     """
     Save the tau and U values from a collection of DRT_Fit_Result objects to a txt file.
@@ -794,7 +833,8 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
     for i in range(len(fits)):
         DRT_data[f'U_iter_{i+1}'] = fits[i].U
     DRT_data = pd.DataFrame(DRT_data)
-    DRT_data.to_csv(path, sep=' ', float_format=float_format, index=False)
+    pd.DataFrame(DRT_data).to_csv(path, sep=' ', float_format=float_format, index=False, )
+
 
 def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
     """
@@ -821,6 +861,7 @@ def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
     model_predictions = pd.DataFrame(model_predictions)
     model_predictions.to_csv(path, sep=' ', float_format=float_format, index=False)
 
+
 def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     """
     Save the MSE and R2 values from a collection of DRT_Fit_Result objects to a txt file.
@@ -842,6 +883,7 @@ def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     R2 = [fit.R2 for fit in fits]
     model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
     model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
+
 
 def saveToTxt(directory_path, fits, float_format='%.5e'):
     """
@@ -878,6 +920,7 @@ def saveToTxt(directory_path, fits, float_format='%.5e'):
     saveModelPredictionsToTxt(modelPredictions_filename, fits, float_format=float_format)
     saveModelErrorsToTxt(outputErrors_filename, fits, float_format=float_format)
 
+
 def readFromTxt(path):
     """
     Reads data stored in a space seperated text file
@@ -892,6 +935,7 @@ def readFromTxt(path):
     None
     """
     return pd.read_csv(path, sep=r"\s+")
+
 
 def saveToPickle(path, fits):
     """
@@ -911,6 +955,7 @@ def saveToPickle(path, fits):
     with open(path, 'wb') as file:
         pickle.dump(fits, file)
 
+
 def readFromPickle(path):
     """
     Loads an array of DRT_Fit_Results from a .pkl file
@@ -929,9 +974,10 @@ def readFromPickle(path):
         fits = pickle.load(file)
     return fits
 
-######### Scripting Functionality ####################################################################
-if __name__ == '__main__':
 
+######### Scripting Functionality ####################################################################
+
+def parseArguments(argv=None):
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("dataFile", 
@@ -946,51 +992,88 @@ if __name__ == '__main__':
                         help="number of iterations in checkerboard fit (default: 50)")
     parser.add_argument("-saveFormat", default="txt", choices=["txt", "pkl"],
                         help="saved data file format (default: txt)")
-    args = parser.parse_args()
+    
+    # Add mutually exclusive group for slicing passed data 
+    slice_group = parser.add_mutually_exclusive_group()
+    slice_group.add_argument("-startIndex", type=int, help="Slices data from given index")
+    slice_group.add_argument("-startTime", type=float, help="Slices data from given time")
+    
+    args = parser.parse_args([argv]) if argv is not None else parser.parse_args(sys.argv[1:])
 
-    # Read data 
+    return args
+
+def main(argv=None):
+
+    # Define exit codes 
+    EXIT_SUCCESS = 0
+    EXIT_FAILURE = 1
+    EXIT_USAGE_ERROR = 2
+
+    # Parse command line arguments
+    args = parseArguments(argv)
+
+    # Read data
     try:
         dataFile = pd.read_csv(args.dataFile, sep=r"\s+")
     except FileNotFoundError:
         print(f"Error: dataFile not found")
-        sys.exit(1)
+        return EXIT_USAGE_ERROR
   
     try: 
         time = np.array(dataFile[args.timeCol])
     except KeyError:
         print(f"Error: column '{args.timeCol}' not found in '{args.dataFile}'")
-        sys.exit(1)
+        return EXIT_USAGE_ERROR
 
     try: 
         y_data = np.array(dataFile[args.funcCol])
     except KeyError:
         print(f"Error: column '{args.funcCol}' not found in '{args.dataFile}'")
-        sys.exit(1)
+        return EXIT_USAGE_ERROR
+    
+    # Set data slice start index if passed
+    try:
+        if args.startIndex is not None:
+            time = time[args.startIndex:]
+            y_data = y_data[args.startIndex:]
+
+        if args.startTime is not None:
+            pass
+
+    except IndexError as e:
+        print(f"Error: slice index out of data range. Check -startIndex or -startTime is in the data range")
+        return EXIT_USAGE_ERROR
 
     # Check whether DRTDirectory exists and, if not, create it
     try: 
         os.makedirs(args.DRTDirectory)
+
     except FileExistsError:
         pass
+
     except PermissionError:
         print(f"Error: DRT.py lacks the neccessary permissions to create {args.DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
-        sys.exit(1)
+        return EXIT_USAGE_ERROR
+    
     except Exception as error:
-        print(f"Error: {error}")
-        sys.exit(1)
+        print(f"Unexpected File Saving Error: {error}")
+        return EXIT_FAILURE
     
     # Run checkerboard fit 
-    run_code = 0
     try:
         fits = checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=args.iters)
-    except Exception as error:
-        traceback.print_exc()
-        sys.exit(1)
-    
-    # Save DRT data to file
-    if args.saveFormat == "txt":
-        saveToTxt(args.DRTDirectory, fits, time)
-    elif args.saveFormat == "pkl":
-        saveToPickle(args.DRTDirectory + "/models.pkl", fits)
+        # Save DRT data to file
+        if args.saveFormat == "txt":
+            saveToTxt(args.DRTDirectory, fits)
+        elif args.saveFormat == "pkl":
+            saveToPickle(args.DRTDirectory + "/models.pkl", fits)
+        return EXIT_SUCCESS
 
-    sys.exit(0)
+    except Exception as error:
+        print(f"Unexpected error: {error}")
+        print(traceback.print_exc())
+        return EXIT_FAILURE
+
+
+if __name__ == '__main__':
+    sys.exit(main())

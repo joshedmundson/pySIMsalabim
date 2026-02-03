@@ -21,7 +21,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
     import pySIMsalabim as sim
 from pySIMsalabim.plots import plot_functions
 
-DRT_VERSION = "0.1"
+DRT_VERSION = "0.2"
 
 ######### References ##############################################################################
 
@@ -529,22 +529,18 @@ def plot_cumulative_U(tau_model, U_model, tau_analytic=None, U_analytic=None, xa
     if tau_analytic is not None and U_analytic is not None:
         cumulative_U_analytic = [np.sum(U_analytic[:i]) for i in range(len(U_analytic))]
     
-    # Set up the plot
-    fig, ax = plt.subplots()
-    if tau_analytic is not None and U_analytic is not None:
-        ax.plot(tau_analytic, cumulative_U_analytic, label=U_label)
-    ax.plot(tau_model, cumulative_U_model, label=U_model_label)
-    ax.set_xscale('log')
-    ax.set_xlabel(xaxis_label)
-    ax.set_ylabel(yaxis_label)
-    ax.set_title(plot_title)
-    ax.legend()
+    ax = plot_functions.plot_2x_2y(
+        tau_model, cumulative_U_model, xaxis_label, yaxis_label, plot_title, U_model_label, 
+        x2=tau_analytic, y2=cumulative_U_analytic, y2_plot_label=U_label, xscale='log', 
+        order=("y2", "y1"), legend=True
+    )
 
     # Return axis if called for, otherwise show the figure
     if return_ax:
         return ax 
     else: 
         plt.show()
+
 
 def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title='MSE per Fit Iteration', 
              return_ax=False):
@@ -578,11 +574,9 @@ def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title
     else: 
         MSE_values = error_array
 
-    fig, ax = plt.subplots()
-    ax.plot(range(1, len(error_array)+1), MSE_values)
-    ax.set_xlabel(xaxis_label)
-    ax.set_ylabel(yaxis_label)
-    ax.set_title(plot_title)
+    ax = plot_functions.plot_2x_2y(
+        range(1, len(MSE_values)+1), MSE_values, xaxis_label, yaxis_label, plot_title
+    )
 
     if return_ax:
         return ax
@@ -622,13 +616,9 @@ def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R
     else:
         R2_values = error_array
 
-    fig, ax = plt.subplots()
-    ax.plot(range(1, len(error_array)+1), R2_values)
-    ax.set_xlabel(xaxis_label)
-    ax.set_ylabel(yaxis_label)
-    ax.set_ylim(ylim)
-    ax.set_title(plot_title)
-
+    ax = plot_functions.plot_2x_2y(
+        range(1, len(R2_values)+1), R2_values, xaxis_label, yaxis_label, plot_title, ylim=ylim
+    )
     if return_ax:
         return ax
     else:

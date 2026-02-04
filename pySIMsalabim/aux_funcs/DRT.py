@@ -23,7 +23,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
 from pySIMsalabim.plots import plot_functions
 
 
-DRT_VERSION = "0.4"
+DRT_VERSION = "0.5"
 
 
 ######### References ##############################################################################
@@ -978,6 +978,17 @@ def readFromPickle(path):
 ######### Scripting Functionality ####################################################################
 
 def parseArguments(argv=None):
+    """ Parses command line arguments into an ArgumentParser object
+    
+    Parameters 
+    ----------
+    argv : [str] (optional)
+        List of strings containing command line args and flags. If none, parses sys.argv[1:] instead.
+        
+    Returns
+    -------
+    args : argparse.ArgumentParser
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("dataFile", 
@@ -1003,7 +1014,20 @@ def parseArguments(argv=None):
     return args
 
 def main(argv=None):
-
+    """ Script entry point for running a checkerboard fit. 
+    
+    Parameters
+    ----------
+    argv : [str] (optional)
+        List of strings containing command line args and flags. Default None
+    
+    Returns
+    -------
+    EXIT_CODE : int
+        0 on a success
+        1 on a failure 
+        2 on a failure due to a usage error
+    """
     # Define exit codes 
     EXIT_SUCCESS = 0
     EXIT_FAILURE = 1
@@ -1031,17 +1055,23 @@ def main(argv=None):
         print(f"Error: column '{args.funcCol}' not found in '{args.dataFile}'")
         return EXIT_USAGE_ERROR
     
-    # Set data slice start index if passed
+    # Set data slice if start index or start time is passed
     try:
         if args.startIndex is not None:
             time = time[args.startIndex:]
             y_data = y_data[args.startIndex:]
 
         if args.startTime is not None:
-            pass
+            filter = np.where(time >= args.startTime)
+            time = time[filter]
+            y_data = y_data[filter]
 
-    except IndexError as e:
-        print(f"Error: slice index out of data range. Check -startIndex or -startTime is in the data range")
+        # Check to make sure the slice hasn't removed all values from the array 
+        if len(time) == 0:
+            raise ValueError
+        
+    except ValueError as e:
+        print(f"Error: no read data. Check dataFile is not empty, and make sure -startIndex/-startTime is in the data range if used")
         return EXIT_USAGE_ERROR
 
     # Check whether DRTDirectory exists and, if not, create it

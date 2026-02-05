@@ -931,18 +931,18 @@ if __name__ == "__main__":
         '-DRTDirectory', 'DRT_Saves',
         '-timeCol', 't',
         '-funcCol', 'Jext',
-        '-iters', 50,
+        '-iters', '50',
         '-saveFormat', 'txt'
     ]
 
     # Define DRT processing maps
     DRT_key_action_map = {
-        '-dataFile' : lambda val : [val],
-        '-DRTDirectory' : lambda val : ['-DRTDirectory', val],
-        '-timeCol' : lambda val : ['-timeCol', val],
-        '-funcCol' : lambda val : ['-funcCol', val],
-        '-iters' : lambda val : ['-iters', int(val)],
-        '-saveFormat' : lambda val : ['-saveFormat', val]
+        '-dataFile' : lambda val : val,
+        '-DRTDirectory' : lambda val : val,
+        '-timeCol' : lambda val : val,
+        '-funcCol' : lambda val : val,
+        '-iters' : lambda val : val,
+        '-saveFormat' : lambda val : val
     }
 
     # Use exactly the same names as in SIMsalabim and as the Manual input parameters, 
@@ -965,8 +965,7 @@ if __name__ == "__main__":
             command_index = DRT_commands_and_args.index(key)
             argument_index = command_index + 1
             # Format the command line arg and replace the default arg
-            formatted_command_line_arg = DRT_key_action_map[key](cmd_pars_dict[key[1:]])
-            DRT_commands_and_args[argument_index] = formatted_command_line_arg
+            DRT_commands_and_args[argument_index] = cmd_pars_dict[key[1:]]
             # Remove from cmd_pars_dict
             cmd_pars_dict.pop(key[1:])
 
@@ -983,7 +982,8 @@ if __name__ == "__main__":
         plot_impedance(session_path, os.path.basename(output_name))
 
         # Call the DRT main script function
-        DRT_result = drt.main(argv=DRT_commands_and_args)
+        print(DRT_commands_and_args)
+        DRT_result = drt.main(argv=DRT_commands_and_args[1:])
         sys.exit(DRT_result)
     else:
         print(message)

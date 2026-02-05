@@ -9,7 +9,7 @@ from pySIMsalabim.plots import plot_def
 
 ######### Function Definitions ####################################################################
 
-def plot_result(data, pars, selected, x_key, xlabel, ylabel, xscale, yscale, title, ax, plot_funcs, xlim=None, ylim=None, x_error = [], y_error=[], legend=True, error_fmt='-'):
+def plot_result(data, pars, selected, x_key, xlabel, ylabel, xscale, yscale, title, ax, plot_funcs, x_error = [], y_error=[], legend=True, error_fmt='-'):
     """Make a plot for a (sub)set of parameters from a DataFrame. Note: errorbars only work with single x,y functions
 
 
@@ -72,10 +72,6 @@ def plot_result(data, pars, selected, x_key, xlabel, ylabel, xscale, yscale, tit
     ax.set_ylabel(ylabel)
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
-    if xlim is not None:
-        ax.set_xlim(xlim)
-    if ylim is not None:
-        ax.set_ylim(ylim)
     ax.set_title(title)
     return ax
 

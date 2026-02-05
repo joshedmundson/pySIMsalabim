@@ -20,6 +20,7 @@ from pySIMsalabim.utils import general as utils_gen
 from pySIMsalabim.plots import plot_functions as utils_plot
 from pySIMsalabim.utils.utils import *
 from pySIMsalabim.utils.device_parameters import *
+import pySIMsalabim.aux_funcs.DRT as drt
 
 ######### Functions #################################################################################
 
@@ -924,6 +925,26 @@ if __name__ == "__main__":
         'UUID': lambda val: {'UUID': val},
     } 
 
+    # Define DRT arguments
+    DRT_commands_and_args = [
+        '-dataFile', tJFile, 
+        '-DRTDirectory', 'DRT_Saves',
+        '-timeCol', 't',
+        '-funcCol', 'Jext',
+        '-iters', 50,
+        '-saveFormat', 'txt'
+    ]
+
+    # Define DRT processing maps
+    DRT_key_action_map = {
+        '-dataFile' : lambda val : [val],
+        '-DRTDirectory' : lambda val : ['-DRTDirectory', val],
+        '-timeCol' : lambda val : ['-timeCol', val],
+        '-funcCol' : lambda val : ['-funcCol', val],
+        '-iters' : lambda val : ['-iters', int(val)],
+        '-saveFormat' : lambda val : ['-saveFormat', val]
+    }
+
     # Use exactly the same names as in SIMsalabim and as the Manual input parameters, 
     # if not than the tVG file name is not updated if putting e.g. "-tVGFile tVG_1.txt" in the command line in the terminal. 
     # Instead two tVG files names are defined one from the manual input parameters and one from the command line wherefore 
@@ -936,6 +957,19 @@ if __name__ == "__main__":
             globals().update(result)  # Dynamically update global variables
             cmd_pars_dict.pop(key)
 
+    # Then check for any DRT commands and parse into a list of strings 
+    for key in list(cmd_pars_dict.keys()):
+        key = "-"+key
+        if key in DRT_key_action_map:
+            # Find the relevant default value in the DRT_commands list
+            command_index = DRT_commands_and_args.index(key)
+            argument_index = command_index + 1
+            # Format the command line arg and replace the default arg
+            formatted_command_line_arg = DRT_key_action_map[key](cmd_pars_dict[key[1:]])
+            DRT_commands_and_args[argument_index] = formatted_command_line_arg
+            # Remove from cmd_pars_dict
+            cmd_pars_dict.pop(key[1:])
+
     # Handle remaining keys in `cmd_pars_dict` and add them to the cmd_pars list
     cmd_pars.extend({'par': key, 'val': value} for key, value in cmd_pars_dict.items())
 
@@ -947,6 +981,10 @@ if __name__ == "__main__":
     calc_Voc_output_string = 'Computing the value of Voc led to the following error:'
     if result == 0 or (result == 95 and calc_Voc_output_string not in message):
         plot_impedance(session_path, os.path.basename(output_name))
+
+        # Call the DRT main script function
+        DRT_result = drt.main(argv=DRT_commands_and_args)
+        sys.exit(DRT_result)
     else:
         print(message)
         sys.exit(1)

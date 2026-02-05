@@ -23,7 +23,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
 from pySIMsalabim.plots import plot_functions
 
 
-DRT_VERSION = "0.5"
+DRT_VERSION = "0.6"
 
 
 ######### References ##############################################################################
@@ -1009,7 +1009,7 @@ def parseArguments(argv=None):
     slice_group.add_argument("-startIndex", type=int, help="Slices data from given index")
     slice_group.add_argument("-startTime", type=float, help="Slices data from given time")
     
-    args = parser.parse_args([argv]) if argv is not None else parser.parse_args(sys.argv[1:])
+    args = parser.parse_args(argv) if argv is not None else parser.parse_args(sys.argv[1:])
 
     return args
 

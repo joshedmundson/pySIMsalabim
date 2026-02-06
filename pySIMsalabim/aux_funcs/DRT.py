@@ -982,12 +982,26 @@ def parseArguments(argv=None):
     
     Parameters 
     ----------
-    argv : [str] (optional)
-        List of strings containing command line args and flags. If none, parses sys.argv[1:] instead.
+    argv : {[str] or Dict[str, str]} (optional)
+        List or dictrionary of strings containing command line args and flags. If list, must be in the
+        format [dataFile_path, '-flag1', argument1, '-flag2', argument2, ...]. If dict,
+        must be in the format {'dataFile' : dataFile_path, 'flag1' : argument1, ...}
+        If none, parses sys.argv[1:] instead.
         
     Returns
     -------
     args : argparse.ArgumentParser
+
+    Example
+    -------
+    # Parses sys.argv[1:]
+    args1 = parseArguments()
+
+    # Parses a list 
+    args2 = parseArguments(['dataFile.txt', '-timeCol', 'time', '-iters', '20'])
+
+    # Parses a dictionary
+    args3 = parseArguments(['dataFile' : 'dataFile.txt', 'timeCol' : 'time', 'iters' : '20'])
     """
     # Parse command line arguments
     parser = argparse.ArgumentParser()
@@ -1003,13 +1017,33 @@ def parseArguments(argv=None):
                         help="number of iterations in checkerboard fit (default: 50)")
     parser.add_argument("-saveFormat", default="txt", choices=["txt", "pkl"],
                         help="saved data file format (default: txt)")
+    parser.add_argument("-UUID", default="", 
+                        help="Identifier tag added to save directory name i.e. DRTDirectory -> DRTDirectory_UUID ")
     
     # Add mutually exclusive group for slicing passed data 
     slice_group = parser.add_mutually_exclusive_group()
     slice_group.add_argument("-startIndex", type=int, help="Slices data from given index")
     slice_group.add_argument("-startTime", type=float, help="Slices data from given time")
     
-    args = parser.parse_args(argv) if argv is not None else parser.parse_args(sys.argv[1:])
+    # IF argv is a dictionary, parse it into a list
+    if isinstance(argv, dict):
+        commands_and_args = []
+        commands_and_args.append(argv['dataFile'])
+        argv.pop('dataFile')
+
+        for key, value in argv.items():
+            key = "-" + key
+            commands_and_args.append(key)
+            commands_and_args.append(value)
+        
+        argv = commands_and_args
+    
+    if isinstance(argv, list):
+        args = parser.parse_args(args=argv)
+    elif argv is None:
+        args = parser.parse_args(args=argv) 
+    else:
+        raise ValueError("argv must be of type None, list[str], or Dict[str, str]")
 
     return args
 
@@ -1040,7 +1074,7 @@ def main(argv=None):
     try:
         dataFile = pd.read_csv(args.dataFile, sep=r"\s+")
     except FileNotFoundError:
-        print(f"Error: dataFile not found")
+        print(f"Error: dataFile not found. Check file path.")
         return EXIT_USAGE_ERROR
   
     try: 
@@ -1074,15 +1108,18 @@ def main(argv=None):
         print(f"Error: no read data. Check dataFile is not empty, and make sure -startIndex/-startTime is in the data range if used")
         return EXIT_USAGE_ERROR
 
+    # Update the passed directory name with the UUID if it exists
+    DRTDirectory = args.DRTDirectory + "_" + args.UUID if args.UUID != "" else args.DRTDirectory
+
     # Check whether DRTDirectory exists and, if not, create it
     try: 
-        os.makedirs(args.DRTDirectory)
+        os.makedirs(DRTDirectory)
 
     except FileExistsError:
         pass
 
     except PermissionError:
-        print(f"Error: DRT.py lacks the neccessary permissions to create {args.DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
+        print(f"Error: DRT.py lacks the neccessary permissions to create {DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
         return EXIT_USAGE_ERROR
     
     except Exception as error:
@@ -1094,9 +1131,9 @@ def main(argv=None):
         fits = checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=args.iters)
         # Save DRT data to file
         if args.saveFormat == "txt":
-            saveToTxt(args.DRTDirectory, fits)
+            saveToTxt(DRTDirectory, fits)
         elif args.saveFormat == "pkl":
-            saveToPickle(args.DRTDirectory + "/models.pkl", fits)
+            saveToPickle(DRTDirectory + "/models.pkl", fits)
         return EXIT_SUCCESS
 
     except Exception as error:

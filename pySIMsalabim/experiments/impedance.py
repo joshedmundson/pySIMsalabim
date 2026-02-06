@@ -937,12 +937,12 @@ if __name__ == "__main__":
             globals().update(result)  # Dynamically update global variables
             cmd_pars_dict.pop(key)
 
-    # Define DRT comands and default args
+    # Define the default DRT filepath
     tj_file_name_base, tj_file_name_ext = os.path.splitext(tJFile)
     dum_str = "" if UUID == "" else f"_{UUID}"
     tj_name = tj_file_name_base + dum_str + tj_file_name_ext 
     defaultDataFile = session_path + "/" + tj_name 
-    print(defaultDataFile)
+ 
     DRT_commands_args = {
         'dataFile' : defaultDataFile,
         'DRTDirectory' : session_path + "/" + 'DRT_Saves',
@@ -978,6 +978,9 @@ if __name__ == "__main__":
     # Make the impedance plots
     calc_Voc_output_string = 'Computing the value of Voc led to the following error:'
     if result == 0 or (result == 95 and calc_Voc_output_string not in message):
+        # Format the output filename to account for the passed UUID
+        output_name_base, output_file_ext = os.path.splitext(output_name)
+        output_name = output_name_base + dum_str + output_file_ext
         plot_impedance(session_path, os.path.basename(output_name))
         # Call the DRT main script function
         if findDRT:

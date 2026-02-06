@@ -23,7 +23,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
 from pySIMsalabim.plots import plot_functions
 
 
-DRT_VERSION = "0.6"
+DRT_VERSION = "0.7"
 
 
 ######### References ##############################################################################

@@ -4,7 +4,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 # from pySIMsalabim.utils import device_parameters as utils_dev
-import scipy.optimize as so
 import argparse
 import sys
 import os
@@ -12,7 +11,6 @@ import traceback
 import pickle
 import pandas as pd
 import numpy as np
-import torch
 import osqp
 from scipy.sparse import csc_matrix
 try:
@@ -23,7 +21,7 @@ except ImportError: # add parent directory to sys.path if pySIMsalabim is not in
 from pySIMsalabim.plots import plot_functions
 
 
-DRT_VERSION = "0.7"
+DRT_VERSION = "0.8"
 
 
 ######### References ##############################################################################
@@ -911,9 +909,9 @@ def save_to_txt(directory_path, fits, float_format='%.5e'):
         pass
     
     # Define file names
-    models_filename = directory_path + "/DRTModels.txt"
-    model_predictions_filename = directory_path + "/modelOutputs.txt"
-    output_errors_filename = directory_path + "/outputErrors.txt"
+    models_filename = os.path.join(directory_path, "DRTModels.txt")
+    model_predictions_filename = os.path.join(directory_path, "modelOutputs.txt")
+    output_errors_filename = os.path.join(directory_path, "outputErrors.txt")
     
     # Save data
     save_models_to_txt(models_filename, fits, float_format=float_format)

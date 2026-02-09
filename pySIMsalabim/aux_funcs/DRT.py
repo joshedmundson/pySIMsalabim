@@ -18,7 +18,7 @@ from scipy.sparse import csc_matrix
 try:
     import pySIMsalabim as sim
 except ImportError: # add parent directory to sys.path if pySIMsalabim is not installed
-    sys.path.append('../..')
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
     import pySIMsalabim as sim
 from pySIMsalabim.plots import plot_functions
 
@@ -60,7 +60,7 @@ class DRT_Fit_Result:
         Fitted coefficients normalised by np.sum(self.U)
     MSE : float 
         Mean square error between the model (self.y) and the fitted signal
-    R2 : float 
+    R_2 : float 
         R^2 error between the model (self.y) and the fitted signal
 
         
@@ -72,7 +72,7 @@ class DRT_Fit_Result:
     set_U_norm()
         Sets self.U_norm to U/np.sum(U)
     """
-    def __init__(self, time, tau, U, y_inf, y=None, MSE=None, R2=None):
+    def __init__(self, time, tau, U, y_inf, y=None, MSE=None, R_2=None):
         self.time = time
         self.U = U
         self.tau = tau 
@@ -80,7 +80,7 @@ class DRT_Fit_Result:
         self.m = len(self.tau)
         self.y_model = None
         self.MSE = MSE
-        self.R2 = R2
+        self.R_2 = R_2
         self.U_norm = None
 
 
@@ -323,7 +323,7 @@ def calculate_tau(time):
     return tau_values
 
 
-def R2_error(y_data, y_model):
+def R_2_error(y_data, y_model):
     """
     Calculates the R^2 error between data (y) and model (y_model)
 
@@ -448,10 +448,10 @@ def linear_fit(time, y_data, tau='Auto', y_inf='Auto', bounds=None, scaling=True
 
     # Step 6: Calculate errors
     MSE = mean_square_error(y_data, y_model)
-    R2 = R2_error(y_data, y_model)
+    R_2 = R_2_error(y_data, y_model)
 
     # Step 7: Package results in DRT_Fit_result
-    fit = DRT_Fit_Result(time, tau, U, y_inf, MSE=MSE, R2=R2)
+    fit = DRT_Fit_Result(time, tau, U, y_inf, MSE=MSE, R_2=R_2)
     fit.y_model = y_model
     fit.set_U_norm()
     
@@ -557,9 +557,9 @@ def checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=
         U_values = scale_factor*U_values
         y_model = predict_y_model(time, U_values, tau, y_inf=y_inf)
         MSE = mean_square_error(y_data, y_model)
-        R2 = R2_error(y_data, y_model)
+        R_2 = R_2_error(y_data, y_model)
 
-        fit = DRT_Fit_Result(time, tau, U_values, y_inf, MSE=MSE, R2=R2)
+        fit = DRT_Fit_Result(time, tau, U_values, y_inf, MSE=MSE, R_2=R_2)
         fit.y_model = y_model
         fit.set_U_norm()
         fits.append(fit)
@@ -765,7 +765,7 @@ def plot_MSE(error_array, xaxis_label='Iteration', yaxis_label='MSE', plot_title
         plt.show()
 
 
-def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
+def plot_R_2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R^2$', plot_title='$R^2$ per fit Iteration', 
              return_ax=False):
     """
     Plots the R^2 error. Useful for checking how R^2 varies with iteration 
@@ -794,12 +794,12 @@ def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R
     """
     
     if isinstance(error_array[0], DRT_Fit_Result):
-        R2_values = [fit.R2 for fit in error_array]
+        R_2_values = [fit.R_2 for fit in error_array]
     else:
-        R2_values = error_array
+        R_2_values = error_array
 
     ax = plot_functions.plot_2x_2y(
-        range(1, len(R2_values)+1), R2_values, xaxis_label, yaxis_label, plot_title, ylim=ylim
+        range(1, len(R_2_values)+1), R_2_values, xaxis_label, yaxis_label, plot_title, ylim=ylim
     )
     if return_ax:
         return ax
@@ -810,7 +810,7 @@ def plot_R2(error_array, ylim=(0, 1.1), xaxis_label='Iteration', yaxis_label='$R
 ######### Data Saving and Reading ####################################################################
 
 
-def saveModelsToTxt(path, fits, float_format='%.5e'):
+def save_models_to_txt(path, fits, float_format='%.5e'):
     """
     Save the tau and U values from a collection of DRT_Fit_Result objects to a txt file.
 
@@ -836,7 +836,7 @@ def saveModelsToTxt(path, fits, float_format='%.5e'):
     pd.DataFrame(DRT_data).to_csv(path, sep=' ', float_format=float_format, index=False, )
 
 
-def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
+def save_model_predictions_to_txt(path, fits, float_format='%.5e'):
     """
     Save the y_model values from a collection of DRT_Fit_Result objects to a txt file.
 
@@ -862,9 +862,9 @@ def saveModelPredictionsToTxt(path, fits, float_format='%.5e'):
     model_predictions.to_csv(path, sep=' ', float_format=float_format, index=False)
 
 
-def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
+def save_model_errors_to_txt(path, fits, float_format='%.5e'):
     """
-    Save the MSE and R2 values from a collection of DRT_Fit_Result objects to a txt file.
+    Save the MSE and R_2 values from a collection of DRT_Fit_Result objects to a txt file.
 
     Parameters
     ----------
@@ -880,14 +880,14 @@ def saveModelErrorsToTxt(path, fits, float_format='%.5e'):
     None
     """
     MSE = [fit.MSE for fit in fits]
-    R2 = [fit.R2 for fit in fits]
-    model_errors = pd.DataFrame({'MSE' : MSE, "R2" : R2})
+    R_2 = [fit.R_2 for fit in fits]
+    model_errors = pd.DataFrame({'MSE' : MSE, "R_2" : R_2})
     model_errors.to_csv(path, sep=' ', float_format=float_format, index=False)
 
 
-def saveToTxt(directory_path, fits, float_format='%.5e'):
+def save_to_txt(directory_path, fits, float_format='%.5e'):
     """
-    Save tau, U, y, MSE, and R2 values from a collection of fit objects to text files.
+    Save tau, U, y, MSE, and R_2 values from a collection of fit objects to text files.
 
     Parameters
     ----------
@@ -911,17 +911,17 @@ def saveToTxt(directory_path, fits, float_format='%.5e'):
         pass
     
     # Define file names
-    DRTModels_filename = directory_path + "/DRTModels.txt"
-    modelPredictions_filename = directory_path + "/modelOutputs.txt"
-    outputErrors_filename = directory_path + "/outputErrors.txt"
+    models_filename = directory_path + "/DRTModels.txt"
+    model_predictions_filename = directory_path + "/modelOutputs.txt"
+    output_errors_filename = directory_path + "/outputErrors.txt"
     
     # Save data
-    saveModelsToTxt(DRTModels_filename, fits, float_format=float_format)
-    saveModelPredictionsToTxt(modelPredictions_filename, fits, float_format=float_format)
-    saveModelErrorsToTxt(outputErrors_filename, fits, float_format=float_format)
+    save_models_to_txt(models_filename, fits, float_format=float_format)
+    save_model_predictions_to_txt(model_predictions_filename, fits, float_format=float_format)
+    save_model_errors_to_txt(output_errors_filename, fits, float_format=float_format)
 
 
-def readFromTxt(path):
+def read_from_txt(path):
     """
     Reads data stored in a space seperated text file
 
@@ -937,7 +937,7 @@ def readFromTxt(path):
     return pd.read_csv(path, sep=r"\s+")
 
 
-def saveToPickle(path, fits):
+def save_to_pickle(path, fits):
     """
     Saves an array of DRT_Fit_Results to a .pkl file
 
@@ -956,7 +956,7 @@ def saveToPickle(path, fits):
         pickle.dump(fits, file)
 
 
-def readFromPickle(path):
+def read_from_pickle(path):
     """
     Loads an array of DRT_Fit_Results from a .pkl file
 
@@ -977,7 +977,7 @@ def readFromPickle(path):
 
 ######### Scripting Functionality ####################################################################
 
-def parseArguments(argv=None):
+def parse_arguments(argv=None):
     """ Parses command line arguments into an ArgumentParser object
     
     Parameters 
@@ -995,13 +995,13 @@ def parseArguments(argv=None):
     Example
     -------
     # Parses sys.argv[1:]
-    args1 = parseArguments()
+    args1 = parse_arguments()
 
     # Parses a list 
-    args2 = parseArguments(['dataFile.txt', '-timeCol', 'time', '-iters', '20'])
+    args2 = parse_arguments(['dataFile.txt', '-timeCol', 'time', '-iters', '20'])
 
     # Parses a dictionary
-    args3 = parseArguments(['dataFile' : 'dataFile.txt', 'timeCol' : 'time', 'iters' : '20'])
+    args3 = parse_arguments(['dataFile' : 'dataFile.txt', 'timeCol' : 'time', 'iters' : '20'])
     """
     # Parse command line arguments
     parser = argparse.ArgumentParser()
@@ -1068,7 +1068,7 @@ def main(argv=None):
     EXIT_USAGE_ERROR = 2
 
     # Parse command line arguments
-    args = parseArguments(argv)
+    args = parse_arguments(argv)
 
     # Read data
     try:
@@ -1109,17 +1109,17 @@ def main(argv=None):
         return EXIT_USAGE_ERROR
 
     # Update the passed directory name with the UUID if it exists
-    DRTDirectory = args.DRTDirectory + "_" + args.UUID if args.UUID != "" else args.DRTDirectory
+    DRT_directory = args.DRTDirectory + "_" + args.UUID if args.UUID != "" else args.DRTDirectory
 
     # Check whether DRTDirectory exists and, if not, create it
     try: 
-        os.makedirs(DRTDirectory)
+        os.makedirs(DRT_directory)
 
     except FileExistsError:
         pass
 
     except PermissionError:
-        print(f"Error: DRT.py lacks the neccessary permissions to create {DRTDirectory}. Try manually creating {args.DRTDirectory} instead.")
+        print(f"Error: DRT.py lacks the neccessary permissions to create {DRT_directory}. Try manually creating {args.DRTDirectory} instead.")
         return EXIT_USAGE_ERROR
     
     except Exception as error:
@@ -1131,9 +1131,9 @@ def main(argv=None):
         fits = checkerboard_fit(time, y_data, tau='Auto', y_inf='Auto', checkerboard_iters=args.iters)
         # Save DRT data to file
         if args.saveFormat == "txt":
-            saveToTxt(DRTDirectory, fits)
+            save_to_txt(DRT_directory, fits)
         elif args.saveFormat == "pkl":
-            saveToPickle(DRTDirectory + "/models.pkl", fits)
+            save_to_pickle(DRT_directory + "/models.pkl", fits)
         return EXIT_SUCCESS
 
     except Exception as error:
